@@ -1,13 +1,4 @@
-import json
 from pathlib import Path
-
-import numpy as np
-import pandas as pd
-import matplotlib as mpl
-import os
-
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 import TransitiveInference.behaviour.transinf_behaviour as tb
 
 SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitiveinference_pilot.csv")
