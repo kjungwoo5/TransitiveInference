@@ -1,10 +1,11 @@
 from pathlib import Path
+from XdetectionCore.xdetectioncore.io_utils import load_pupil_sess_lazy
 
 import pandas as pd
 import os
 
 # Load trial data by session using information in session topology
-def load_trial_data_by_session(session_path: Path, home_dir: Path, td_df_query=None) -> pd.DataFrame:
+def load_aggregate_trial_data(session_path: Path, home_dir: Path, td_df_query=None) -> pd.DataFrame:
     session_topology = pd.read_csv(session_path)
     session_topology.dropna(how='any', inplace=True)
 
@@ -28,4 +29,85 @@ def load_trial_data_by_session(session_path: Path, home_dir: Path, td_df_query=N
     return td_df
 
 
+# Functions for loading and processing data
+def load_aggregate_pupil_df(session_topology: pd.DataFrame, stage: int, parquet_dir: Path) -> pd.DataFrame:
+    """Load pupil data for all sessions in session_topology matching the requested stage."""
+    
+    print(f'Loading pupil data for Stage {stage} from parquet directory...')
+
+    session_topology = session_topology.dropna(how='all').reset_index(drop=True)
+
+    relevant_sessions = session_topology[session_topology['Stage'] == stage].copy()
+    if relevant_sessions.empty:
+        raise ValueError(f'No sessions found for STAGE={stage}')
+
+    relevant_sessions = relevant_sessions.dropna(subset=['sound_bin']).reset_index(drop=True)
+    session_keys = [Path(str(sound_bin).replace('_SoundData', '')).stem
+                    for sound_bin in relevant_sessions['sound_bin']]
+
+    pupil_store = load_pupil_sess_lazy(parquet_dir)
+    if not hasattr(pupil_store, 'keys') or len(pupil_store.keys()) == 0:
+        raise FileNotFoundError(f'Parquet store not found or empty at {parquet_dir}')
+
+    pupil_dfs = []
+    missing_sessions = []
+    for sess_key in session_keys:
+        try:
+            pupil_dfs.append(pupil_store[sess_key].pupildf)
+        except KeyError:
+            missing_sessions.append(sess_key)
+
+    if missing_sessions:
+        print(f'Warning: the following sessions were not found in the parquet store: {missing_sessions}')
+
+    if not pupil_dfs:
+        raise ValueError('No pupil DataFrames could be loaded for the requested stage.')
+
+    pupil_df = pd.concat(pupil_dfs, axis=0)
+    return pupil_df
+
+
+def load_aggregate_harp_df(session_topology: pd.DataFrame, stage: int, harp_dir: Path) -> pd.DataFrame:
+    """Load all sound_index files for sessions in the session_topology into one DataFrame."""
+
+    print(f'Loading harp write data for Stage {stage} from harp directory...')
+    
+    session_topology = session_topology.dropna(how='all').reset_index(drop=True)
+    relevant_sessions = session_topology[session_topology['Stage'] == stage].copy()
+    if relevant_sessions.empty:
+        raise ValueError(f'No sessions found for STAGE={stage}')
+    
+    relevant_sessions = relevant_sessions.dropna(subset=['sound_bin']).reset_index(drop=True)
+
+    sound_bin_col = next((col for col in session_topology.columns if col.lower() == 'sound_bin'), None)
+    if sound_bin_col is None:
+        raise ValueError('session_topology must contain a sound_bin column')
+
+    session_topology = session_topology.dropna(subset=[sound_bin_col]).reset_index(drop=True)
+    if session_topology.empty:
+        raise ValueError('No valid sound_bin values found in session_topology.')
+
+    aggregated = []
+    missing_files = []
+    for _, row in relevant_sessions.iterrows():
+        session_id = Path(row[sound_bin_col]).stem
+        sound_index_file = harp_dir / f"{session_id}_write_indices.csv"
+        if not sound_index_file.is_file():
+            missing_files.append(str(sound_index_file))
+            continue
+
+        df = pd.read_csv(sound_index_file)
+        df['session_id'] = session_id.replace('_SoundData', '')
+        aggregated.append(df)
+
+    if missing_files:
+        print(f'Warning: missing sound_index files for {len(missing_files)} sessions:')
+        for missing in missing_files:
+            print(f'  {missing}')
+
+    if not aggregated:
+        raise ValueError('No sound_index files were loaded from the harp directory.')
+
+    harp_df = pd.concat(aggregated, axis=0, ignore_index=True)
+    return harp_df
 
