@@ -369,7 +369,7 @@ class PupilPlotter:
         pupil_plot[1].axvline(0, color='k', linestyle='--')
         annotation = f'n = {n_stimuli} stimuli'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5))
+        pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
@@ -384,6 +384,7 @@ class PupilPlotter:
         plt.pause(0.1)
 
     def plot_baseline_sub_testing(self, save_figure = True, show_plot = True):
+        animals_to_list = ', '.join(self.animals)
         pupil_plot = plt.subplots()
         n_stimuli = 0
         aggregated_aligned_pupil = self.aggregate_total()
