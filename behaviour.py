@@ -13,6 +13,7 @@ from tqdm import tqdm
 # (session_name, animal_name, date, session, trial_number) and columns including 'RewardTone_Time' and 'Gap_Time'
 def plot_reaction_time(td_df: pd.DataFrame, output_path: Path, days_list = None, td_df_query=None, show_plots = False):
     df = td_df.copy()
+    plt.pause(0.1)
     if days_list:
         print(f'Selecting for the days: {days_list}')
         df = df[df['date'].isin(days_list)]
@@ -37,12 +38,14 @@ def plot_reaction_time(td_df: pd.DataFrame, output_path: Path, days_list = None,
         if show_plots:
             plt.show()
         fig.savefig(output_path / fr'Reaction Times\{session}_reactiontimes.png')
+        fig.clf()
 
 
 # Plot time between X and subsequent pattern onset using a dataframe containing trial data with session-level multiindex 
 # (session_name, animal_name, date, session, trial_number) and columns including 'RewardTone_Time' and 'Gap_Time'
 def plot_X_A_time(td_df: pd.DataFrame, stage : int, output_path: Path, days_list = None, td_df_query=None, show_plots = False):
     df = td_df.copy()
+    plt.pause(0.1)
     if days_list:
         print(f'Selecting for the days: {days_list}')
         df = df[df['date'].isin(days_list)]
@@ -65,4 +68,5 @@ def plot_X_A_time(td_df: pd.DataFrame, stage : int, output_path: Path, days_list
     if show_plots:
         plt.show()
     fig.savefig(output_path / fr'X_A Times\X_A_Times_Stage{stage}.png')
+    fig.clf()
 

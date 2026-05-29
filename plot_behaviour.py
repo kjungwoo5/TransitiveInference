@@ -1,6 +1,6 @@
 from pathlib import Path
 import behaviour as tfb
-import aggregate_data as tfio
+import data_io as tfio
 
 
 SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitiveinference_pilot.csv")

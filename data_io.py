@@ -1,11 +1,52 @@
 from pathlib import Path
-from XdetectionCore.xdetectioncore.io_utils import load_pupil_sess_lazy
 
 import pandas as pd
 import os
 
+# IO Utils copied from XdetectionCore:
+class LazyPupilLoader:
+    def __init__(self, store_path: Path):
+        self.store_path = Path(store_path)
+        self.available_keys = self._get_keys()
+
+    def _get_keys(self):
+        if not self.store_path.exists():
+            return []
+        # Derives keys from folder names: session_id=NAME
+        return [d.name.split('=')[1] for d in self.store_path.glob('session_id=*')]
+
+    def __getitem__(self, key):
+        """Returns an object with a .pupildf attribute"""
+        if key not in self.available_keys:
+            raise KeyError(f"Session {key} not found.")
+        
+        # 1. Load the actual DataFrame
+        df = pd.read_parquet(
+            self.store_path, 
+            filters=[('session_id', '==', key)],
+            engine='pyarrow'
+        )
+
+    def keys(self):
+        return self.available_keys
+
+def load_pupil_sess_lazy(store_path: Path):
+    """
+    Replaces the original pickle load.
+    Returns a lazy-loading proxy instead of a full dictionary.
+    """
+    store_path = Path(store_path).with_suffix('')  # Ensure we point to the folder
+
+    if store_path.is_dir():
+        print(f"Initializing lazy loader for Parquet store at {store_path}")
+        return LazyPupilLoader(store_path)
+    else:
+        print(f"Store {store_path} not found. Returning empty dict.")
+        return {}
+
+
 # Load trial data by session using information in session topology
-def load_aggregate_trial_data(session_path: Path, home_dir: Path, td_df_query=None) -> pd.DataFrame:
+def load_aggregate_trial_data(session_path: Path, home_dir: Path, td_df_query = None) -> pd.DataFrame:
     session_topology = pd.read_csv(session_path)
     session_topology.dropna(how='any', inplace=True)
 
@@ -29,10 +70,11 @@ def load_aggregate_trial_data(session_path: Path, home_dir: Path, td_df_query=No
     return td_df
 
 
-# Functions for loading and processing data
-def load_aggregate_pupil_df(session_topology: pd.DataFrame, stage: int, parquet_dir: Path) -> pd.DataFrame:
+# Load pupil data from parquet files by session using session topology
+def load_aggregate_pupil_df(session_path: Path, stage: int, parquet_dir: Path, pupil_df_query = None) -> pd.DataFrame:
     """Load pupil data for all sessions in session_topology matching the requested stage."""
-    
+    session_topology = pd.read_csv(session_path)
+    session_topology.dropna(how='any', inplace=True)
     print(f'Loading pupil data for Stage {stage} from parquet directory...')
 
     session_topology = session_topology.dropna(how='all').reset_index(drop=True)
@@ -64,12 +106,17 @@ def load_aggregate_pupil_df(session_topology: pd.DataFrame, stage: int, parquet_
         raise ValueError('No pupil DataFrames could be loaded for the requested stage.')
 
     pupil_df = pd.concat(pupil_dfs, axis=0)
+    if pupil_df_query:
+        pupil_df = pupil_df.query(pupil_df_query)
+    
     return pupil_df
 
 
-def load_aggregate_harp_df(session_topology: pd.DataFrame, stage: int, harp_dir: Path) -> pd.DataFrame:
+# Load harp write data by session using session topology
+def load_aggregate_harp_df(session_path: Path, stage: int, harp_dir: Path, harp_df_query = None) -> pd.DataFrame:
     """Load all sound_index files for sessions in the session_topology into one DataFrame."""
-
+    session_topology = pd.read_csv(session_path)
+    session_topology.dropna(how='any', inplace=True)
     print(f'Loading harp write data for Stage {stage} from harp directory...')
     
     session_topology = session_topology.dropna(how='all').reset_index(drop=True)
@@ -109,5 +156,7 @@ def load_aggregate_harp_df(session_topology: pd.DataFrame, stage: int, harp_dir:
         raise ValueError('No sound_index files were loaded from the harp directory.')
 
     harp_df = pd.concat(aggregated, axis=0, ignore_index=True)
+    if harp_df_query:
+        harp_df = harp_df.query(harp_df_query)
+    
     return harp_df
-

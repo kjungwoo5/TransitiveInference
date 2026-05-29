@@ -457,9 +457,6 @@ for session_id in session_ids:
     pupil = pupil_df[pupil_df['session_id'] == session_id]['pupilsense_raddi_a_zscored']
     harp = harp_df[harp_df['session_id'] == session_id]
 
-    # Take pupil data from only the middle 80% of trials
-    pupil = pupil.iloc[int(pupil.shape[0]*0.1):int(pupil.shape[0]*0.9)]
-
 
     # Take harp data only past the first 100 trials (i.e. occurrences of X)
     Xs = harp.index[harp['Payload'] == 3].tolist()
