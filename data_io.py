@@ -4,7 +4,8 @@ import pandas as pd
 import os
 import sys
 sys.path.append('../')
-from XdetectionCore.xdetectioncore.io_utils import load_pupil_sess_lazy
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from Analysis.XdetectionCore.xdetectioncore.io_utils import load_pupil_sess_lazy
 
 
 # Load trial data by session using information in session topology
@@ -33,17 +34,19 @@ def load_aggregate_trial_data(session_path: Path, home_dir: Path, td_df_query = 
 
 
 # Load pupil data from parquet files by session using session topology
-def load_aggregate_pupil_df(session_path: Path, stage: int, parquet_dir: Path, pupil_df_query = None) -> pd.DataFrame:
+def load_aggregate_pupil_df(session_path: Path, stage: int | None, parquet_dir: Path, pupil_df_query = None) -> pd.DataFrame:
     """Load pupil data for all sessions in session_topology matching the requested stage."""
     session_topology = pd.read_csv(session_path)
     session_topology.dropna(how='any', inplace=True)
-    print(f'Loading pupil data for Stage {stage} from parquet directory...')
-
+    
     session_topology = session_topology.dropna(how='all').reset_index(drop=True)
-
-    relevant_sessions = session_topology[session_topology['Stage'] == stage].copy()
-    if relevant_sessions.empty:
-        raise ValueError(f'No sessions found for STAGE={stage}')
+    
+    relevant_sessions = session_topology.copy()
+    if stage:
+        print(f'Loading pupil data for Stage {stage} from parquet directory...')
+        relevant_sessions = session_topology[session_topology['Stage'] == stage].copy()
+        if relevant_sessions.empty:
+            raise ValueError(f'No sessions found for STAGE={stage}')
 
     relevant_sessions = relevant_sessions.dropna(subset=['sound_bin']).reset_index(drop=True)
     session_keys = [Path(str(sound_bin).replace('_SoundData', '')).stem
@@ -75,16 +78,21 @@ def load_aggregate_pupil_df(session_path: Path, stage: int, parquet_dir: Path, p
 
 
 # Load harp write data by session using session topology
-def load_aggregate_harp_df(session_path: Path, stage: int, harp_dir: Path, harp_df_query = None) -> pd.DataFrame:
+def load_aggregate_harp_df(session_path: Path, stage: int | None, harp_dir: Path, harp_df_query = None) -> pd.DataFrame:
     """Load all sound_index files for sessions in the session_topology into one DataFrame."""
     session_topology = pd.read_csv(session_path)
     session_topology.dropna(how='any', inplace=True)
-    print(f'Loading harp write data for Stage {stage} from harp directory...')
     
     session_topology = session_topology.dropna(how='all').reset_index(drop=True)
-    relevant_sessions = session_topology[session_topology['Stage'] == stage].copy()
-    if relevant_sessions.empty:
-        raise ValueError(f'No sessions found for STAGE={stage}')
+    
+    relevant_sessions = session_topology.copy()
+    if stage: 
+        print(f'Loading harp write data for Stage {stage} from harp directory...')
+        relevant_sessions = session_topology[session_topology['Stage'] == stage].copy()
+        if relevant_sessions.empty:
+            raise ValueError(f'No sessions found for STAGE={stage}')
+    else: 
+        print('Loading harp write data from harp directory...')
     
     relevant_sessions = relevant_sessions.dropna(subset=['sound_bin']).reset_index(drop=True)
 
