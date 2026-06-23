@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 import os
 import sys
 sys.path.append('../')
@@ -130,3 +131,35 @@ def load_aggregate_harp_df(session_path: Path, stage: int | None, harp_dir: Path
         harp_df = harp_df.query(harp_df_query)
     
     return harp_df
+
+def filter_harp_by_successful_trials(harp_df: pd.DataFrame, td_df: pd.DataFrame, print_trial_lengths = True) -> pd.DataFrame:
+    # Check that session IDs of harp_df are found within td_df
+    harp_ids = set(harp_df['session_id'].unique())
+    td_ids = set(td_df['session_name'].unique())
+    if harp_ids > td_ids:
+        print(f'Missing trial data for sessions: {harp_ids - td_ids} \nFiltering for remaining sessions: {harp_ids & td_ids}')
+    if harp_ids & td_ids is None:
+        raise ValueError('No overlapping sessions found between harp and trial data!')
+    
+    harp_df_filtereds = []
+    # Label individual trials by outcome
+    for session in harp_ids:
+        harp = harp_df[harp_df['session_id'] == session]
+        td = td_df[td_df['session_name'] == session]
+        Xs = harp.index[harp['Payload'] == 3].tolist()
+        if len(Xs) != td.shape[0]:
+            if print_trial_lengths:
+                print(f'No. of trials in {session} does not match! Harp: {len(Xs)}, TrialData: {td.shape[0]}. Slicing off excess...')
+            if len(Xs) > td.shape[0]:
+                Xs = Xs[:td.shape[0]]
+            elif len(Xs) < td.shape[0]:
+                td = td.head(len(Xs))
+        trial_outcomes = td['Trial_Outcome']
+        harp['Outcome'] = np.NaN
+        for index, outcome in enumerate(trial_outcomes):
+            harp.at[Xs[index], 'Outcome'] = outcome
+        harp['Outcome'] = harp['Outcome'].bfill()
+        harp_df_filtereds.append(harp)
+    
+    harp_df_filtered = pd.concat(harp_df_filtereds, axis=0)
+    return harp_df_filtered

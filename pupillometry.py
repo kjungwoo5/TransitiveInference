@@ -1,5 +1,6 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from itertools import permutations
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -50,7 +51,10 @@ Y_LIMS = {
     'JK02': (-0.5,0.7),
     'JK03': (-0.5,0.4),
     'JK04': (-0.5,0.6),
-    ' JK01, JK02, JK03, JK04 ': (-0.35,0.35)
+    ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
+    'JK01_early_filtered': (-0.3, 0.3),
+    'JK01_late_filtered': (-0.3, 0.3),
+    'JK01_filtered': (-0.3, 0.3),
 }
 
 class PupilPlotter:
@@ -77,14 +81,34 @@ class PupilPlotter:
             raise Exception(f'Something went wrong. Type of analysis = {self.type_of_analysis}')
         
         
-    def get_stimuli(self, harp):
+    def set_early_sessions(self, proportion = 0.4):
+        sessions = list(self.pupil_df['session_id'].unique())
+        early_sessions = sessions[:int(len(sessions) * proportion)]
+        self.harp_df = self.harp_df[self.harp_df['session_id'].isin(early_sessions)]
+        self.pupil_df = self.pupil_df[self.pupil_df['session_id'].isin(early_sessions)]
+        self.animals = [a + '_early' for a in self.animals]
+    
+    def set_late_sessions(self, proportion = 0.4):
+        sessions = list(self.pupil_df['session_id'].unique())
+        late_sessions = sessions[int(len(sessions) * proportion):]
+        self.harp_df = self.harp_df[self.harp_df['session_id'].isin(late_sessions)]
+        self.pupil_df = self.pupil_df[self.pupil_df['session_id'].isin(late_sessions)]
+        self.animals = [a + '_late' for a in self.animals]
+    
+    def get_stimuli(self, harp, filter):
         if self.type_of_analysis != 'exposure':
             # Take harp data only past the first 100 trials (i.e. occurrences of X)
-            Xs = harp.index[harp['Payload'] == 3].tolist()
-            if len(Xs) > 100:
-                harp = harp[harp.index >= Xs[100]]
-                Xs = Xs[100:]
-
+            if self.stage != 5: 
+                Xs = harp.index[harp['Payload'] == 3].tolist()
+                if len(Xs) > 100:
+                    harp = harp[harp.index >= Xs[100]]
+                    Xs = Xs[100:]
+            else: 
+                Xs = harp.index[harp['Payload'] == 3].tolist()
+            if filter: 
+                harp = harp[harp['Outcome'] == 1]
+                if '_filtered' not in ''.join(self.animals):
+                    self.animals = [a + '_filtered' for a in self.animals]
             if self.stage == 1:
                 types_of_stimuli = ['X', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
                 As = harp.index[harp['Payload'] == 8].tolist()
@@ -208,6 +232,43 @@ class PupilPlotter:
                     CFEDs = harp.index[(harp['Payload'] == 14) & (harp['Payload'].shift(-1) == 20) & (harp['Payload'].shift(1) != 12) & (harp['Payload'].shift(1) != 30)].tolist()
                 
                 stimuli_list = [Xs, ABCDs, EFGHs, CDEFs, CFEDs]
+            
+            elif self.stage == 5:
+                tonemap = {'A': 10, 'B': 12, 'C': 14, 'D': 16, 'E': 18, 'F':20, 'G': 22, 'H': 24}
+                types_of_stimuli = ['X']
+                perm_CDEF = list(permutations('CDEF'))
+                for perm in perm_CDEF: 
+                    types_of_stimuli.append(''.join(perm))
+                types_of_stimuli.append('ABGH')
+                types_of_stimuli.append('GHAB')
+                
+                stimuli_list = [Xs]
+                if self.type_of_analysis == 'testing':
+                    for stimulus in types_of_stimuli[1:]:
+                        sequences = harp.index[(harp['Payload'] == tonemap[stimulus[0]]) & 
+                                               (harp['Payload'].shift(-1) == tonemap[stimulus[1]]) & 
+                                               (harp['Payload'].shift(-2) == tonemap[stimulus[2]]) & 
+                                               (harp['Payload'].shift(-3) == tonemap[stimulus[3]])].tolist()
+                        stimuli_list.append(sequences)
+                
+                elif self.type_of_analysis == 'first':
+                    for stimulus in types_of_stimuli[1:]:
+                        sequences = harp.index[(harp['Payload'] == tonemap[stimulus[0]]) & 
+                                               (harp['Payload'].shift(-1) == tonemap[stimulus[1]]) & 
+                                               (harp['Payload'].shift(-2) == tonemap[stimulus[2]]) & 
+                                               (harp['Payload'].shift(-3) == tonemap[stimulus[3]]) &
+                                               (harp['Payload'].shift(1) == 30)].tolist()
+                        stimuli_list.append(sequences)
+                
+                elif self.type_of_analysis == 'second':
+                    for stimulus in types_of_stimuli[1:]:
+                        sequences = harp.index[(harp['Payload'] == tonemap[stimulus[0]]) & 
+                                               (harp['Payload'].shift(-1) == tonemap[stimulus[1]]) & 
+                                               (harp['Payload'].shift(-2) == tonemap[stimulus[2]]) & 
+                                               (harp['Payload'].shift(-3) == tonemap[stimulus[3]]) &
+                                               (harp['Payload'].shift(1) != 30)].tolist()
+                        stimuli_list.append(sequences)
+                
         
         elif self.type_of_analysis == 'exposure':
             # Take harp data only until the first 100 trials (i.e. occurrences of X)
@@ -215,7 +276,10 @@ class PupilPlotter:
             if len(Xs) > 100:
                 Xs = Xs[:100]
                 harp = harp[harp.index < Xs[100]]
-
+            if filter: 
+                harp = harp[harp['Outcome'] == 1]
+                if 'filtered' not in ''.join(self.animals):
+                    self.animals = [a + '_filtered' for a in self.animals]
             if self.stage == 2:
                 types_of_stimuli = ['X', 'Normal']
                 normals = harp.index[(harp['Payload'] == 25) & (harp['Payload'].shift(-2) == 27)].tolist()
@@ -253,14 +317,14 @@ class PupilPlotter:
         return stimuli_list
     
     # Returns a dictionary of aligned pupil data by session by type of stimulus, and returns types of stimuli for future plotting
-    def align_pupil_by_session(self):
+    def align_pupil_by_session(self, filter = False):
         session_ids = self.harp_df['session_id'].unique()
         aligned_pupil_by_session = {}
         for session_id in session_ids:
             pupil = self.pupil_df[self.pupil_df['session_id'] == session_id]['pupilsense_raddi_a_zscored']
             harp = self.harp_df[self.harp_df['session_id'] == session_id]
 
-            stimuli_list = self.get_stimuli(harp)
+            stimuli_list = self.get_stimuli(harp, filter)
             
             for stimulus in stimuli_list:
                 for index in stimulus:
@@ -479,20 +543,28 @@ class PupilPlotter:
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_nonbaselined.png')
         fig.clf()
     
-    def plot_overall_baseline_sub_aligned_pupil(self, save_figure = True, show_plot = True):
+    def plot_overall_baseline_sub_aligned_pupil(self, save_figure = True, show_plot = True, use_median = False):
         animals_to_list = ', '.join(self.animals)
 
         aggregated_aligned_pupil = self.aggregate_total()
         pupil_plot = plt.subplots()
         for event_id, response in aggregated_aligned_pupil.items():
-            baseline_mean = response.loc[:, -1:0].mean(axis=1)
+            if self.stage == 1:
+                baseline_mean = response.loc[:, -0.5:0].mean(axis=1)
+            else:
+                baseline_mean = response.loc[:, -1:0].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
-            pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
-            plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+            if not use_median:
+                pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+                plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+            else: 
+                pupil_plot[1].plot(baselined.columns, baselined.median(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+                plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.median(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
         pupil_plot[1].legend()
         pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
         annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+        pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
@@ -503,7 +575,10 @@ class PupilPlotter:
             pupil_plot[0].show()
         if save_figure:
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted.png')
+            if not use_median:
+                fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted.png')
+            else: 
+                fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_median.png')
         fig.clf()
     
     def plot_baseline_sub_training(self, save_figure = True, show_plot = True):
@@ -567,13 +642,13 @@ class PupilPlotter:
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-        pupil_plot[0].suptitle(f'Baseline Subtracted plot of testing stimuli for {self.animals}')
+        pupil_plot[0].suptitle(f'Baseline Subtracted plot of testing stimuli for {animals_to_list}')
         fig = plt.gcf()
         if show_plot:
             pupil_plot[0].show()
         if save_figure:
-            os.makedirs(fr'{self.output_path}\{self.output_subdir}\{self.animals}', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{self.animals}\Stage{self.stage}_{self.animals}_Baseline_Subtracted_Testing.png')
+            os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
+            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_Testing.png')
         fig.clf()
         
 
