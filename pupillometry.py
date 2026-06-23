@@ -651,6 +651,68 @@ class PupilPlotter:
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_Testing.png')
         fig.clf()
         
+    def plot_stage5_perms(self, save_figure = True, show_plot = True):
+        animals_to_list = ', '.join(self.animals)
+
+        aggregated_aligned_pupil = self.aggregate_total()
+        pupil_plot = plt.subplots()
+        for event_id, response in aggregated_aligned_pupil.items():
+            baseline_mean = response.loc[:, -1:0].mean(axis=1)
+            baselined = response.sub(baseline_mean, axis=0)
+            pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+            plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+        pupil_plot[1].legend()
+        pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
+        annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
+        pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+        pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
+        pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
+        pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
+        pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
+        pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
+        pupil_plot[0].suptitle(f'Baseline subtracted plot for {animals_to_list}')
+        fig = plt.gcf()
+        if show_plot:
+            pupil_plot[0].show()
+        if save_figure:
+            os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
+            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted.png')
+        fig.clf()
+        
+        for start_letter in 'CDEFA':
+            pupil_plot = plt.subplots()
+            n_stimuli = 0
+            for event_id, response in aggregated_aligned_pupil.items():
+                if event_id == 'X':
+                    continue
+                if (start_letter != 'A') and (event_id[0] != start_letter):
+                    continue
+                elif (start_letter == 'A') and ((event_id[0] != start_letter) or (event_id[0] != 'G')): 
+                    continue
+                n_stimuli += len(response.index)
+                baseline_mean = response.loc[:, -1:0].mean(axis=1)
+                baselined = response.sub(baseline_mean, axis=0)
+                pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+                plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+            pupil_plot[1].legend()
+            pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
+            annotation = f'n = {n_stimuli} stimuli'
+            pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+            pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
+            pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
+            pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
+            pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
+            pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
+            pupil_plot[0].suptitle(f'Baseline subtracted plot for {animals_to_list}')
+            fig = plt.gcf()
+            if show_plot:
+                pupil_plot[0].show()
+            if save_figure:
+                os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
+                fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{start_letter}Sequences_{animals_to_list}_Baseline_Subtracted.png')
+            fig.clf()
+            
+        
 
     def plot_overall_distribution(self, save_figure = True, show_plot = True):
         animals_to_list = ', '.join(self.animals)
