@@ -337,7 +337,7 @@ class PupilPlotter:
                 
             for event_id, event_times in event_times_by_event.items():
                 if self.stage == 1:
-                    epochs = [pupil.loc[t -0.5 :t + 1] for t in event_times]
+                    epochs = [pupil.loc[t -0.5 :t + 2] for t in event_times]
                 else:
                     epochs = [pupil.loc[t + READING_WINDOW[0]:t + READING_WINDOW[1]] for t in event_times]
                 if epochs == []:
@@ -348,7 +348,7 @@ class PupilPlotter:
                 aligned_pupil[event_id] = epochs_array[-300:]
 
             if self.stage == 1:
-                x_ser = np.round(np.linspace(-0.5, 1, aligned_pupil['X'].shape[1]), 2)
+                x_ser = np.round(np.linspace(-0.5, 2, aligned_pupil['X'].shape[1]), 2)
             else:
                 x_ser = np.round(np.linspace(READING_WINDOW[0], READING_WINDOW[1], aligned_pupil['X'].shape[1]), 2)
 
@@ -550,7 +550,7 @@ class PupilPlotter:
         pupil_plot = plt.subplots()
         for event_id, response in aggregated_aligned_pupil.items():
             if self.stage == 1:
-                baseline_mean = response.loc[:, -0.5:0].mean(axis=1)
+                baseline_mean = response.loc[:, -0.2:0.2].mean(axis=1)
             else:
                 baseline_mean = response.loc[:, -1:0].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
@@ -582,6 +582,12 @@ class PupilPlotter:
         fig.clf()
     
     def plot_baseline_sub_training(self, save_figure = True, show_plot = True):
+        if self.stage == 2: 
+            testing = ['Deviant']
+        elif self.stage == 3: 
+            testing = ['EFGH', 'EFHG', 'BCDE']
+        elif self.stage == 4:
+            testing = ['CDEF', 'CFED']
         animals_to_list = ', '.join(self.animals)
         pupil_plot = plt.subplots()
         n_stimuli = 0
@@ -589,7 +595,7 @@ class PupilPlotter:
         for event_id, response in aggregated_aligned_pupil.items():
             if event_id == 'X':
                 continue
-            if event_id in ['EFGH', 'EFHG', 'BCDE']:
+            if event_id in testing:
                 continue
             n_stimuli += len(response.index)
             baseline_mean = response.loc[:, -1:0].mean(axis=1)
@@ -617,6 +623,12 @@ class PupilPlotter:
         plt.pause(0.1)
 
     def plot_baseline_sub_testing(self, save_figure = True, show_plot = True):
+        if self.stage == 2: 
+            training = ['Normal']
+        elif self.stage == 3: 
+            training = ['ABCD', 'CDEF', 'GHIJ']
+        elif self.stage == 4:
+            training = ['ABCD', 'EFGH']
         animals_to_list = ', '.join(self.animals)
         pupil_plot = plt.subplots()
         n_stimuli = 0
@@ -624,7 +636,7 @@ class PupilPlotter:
         for event_id, response in aggregated_aligned_pupil.items():
             if event_id == 'X':
                 continue
-            if event_id in ['ABCD', 'CDEF', 'GHIJ']:
+            if event_id in training:
                 continue
             n_stimuli += len(response.index)
             baseline_mean = response.loc[:, -1:0].mean(axis=1)
@@ -657,7 +669,7 @@ class PupilPlotter:
         aggregated_aligned_pupil = self.aggregate_total()
         pupil_plot = plt.subplots()
         for event_id, response in aggregated_aligned_pupil.items():
-            baseline_mean = response.loc[:, -1:0].mean(axis=1)
+            baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
             pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
             plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
@@ -687,10 +699,10 @@ class PupilPlotter:
                     continue
                 if (start_letter != 'A') and (event_id[0] != start_letter):
                     continue
-                elif (start_letter == 'A') and ((event_id[0] != start_letter) or (event_id[0] != 'G')): 
+                elif (start_letter == 'A') and ((event_id[0] != start_letter) and (event_id[0] != 'G')): 
                     continue
                 n_stimuli += len(response.index)
-                baseline_mean = response.loc[:, -1:0].mean(axis=1)
+                baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
                 baselined = response.sub(baseline_mean, axis=0)
                 pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
                 plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
@@ -736,4 +748,52 @@ class PupilPlotter:
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\Actual Distributions', exist_ok=True)
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\Actual Distributions\Stage{self.stage}_{animals_to_list}_distribution.png')
         fig.clf()
+    
+    def prep_for_decoding(self, window_size = 0.1):
+        pip_dilations = []
+        aggregated_aligned_pupil = self.aggregate_total()
         
+        # Correct each individual trial such that baseline is around 0 at 0s
+        for event_id, response in aggregated_aligned_pupil.items():
+            pip_dilation = []
+            for index, row in response.iterrows():
+                baseline_mean = row.loc[-0.25:0.25].mean()
+                row = row.sub(baseline_mean)
+                
+                # Get mean pupil dilation from windows of 100ms centred around 640ms, 1140ms, 1640ms, and 2140ms respectively
+                a = row.loc[0.64-window_size/2 : 0.64+window_size/2].mean()
+                b = row.loc[1.14-window_size/2 : 1.14+window_size/2].mean()
+                c = row.loc[1.64-window_size/2 : 1.64+window_size/2].mean()
+                d = row.loc[2.14-window_size/2 : 2.14+window_size/2].mean()
+                pip_dilation.append([a,b,c,d, event_id])
+            pip_dilations.extend(pip_dilation)
+        # Convert pip_dilations into a df with columns of pip1, pip2, pip3, pip4, with label of event_id
+        pip_df = pd.DataFrame(pip_dilations, columns=['pip1', 'pip2', 'pip3', 'pip4', 'stimulus_id'])
+        return pip_df
+    
+    def plot_pitch_dependency(self, offset = 0.64, window_size = 0.1, save_figure = True, show_plot = True):
+        animals_to_list = ', '.join(self.animals)
+
+        aggregated_aligned_pupil = self.aggregate_total()
+        pupil_plot = plt.subplots()
+        pitch_dependency = {}
+        for event_id, response in aggregated_aligned_pupil.items():
+            baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
+            baselined = response.sub(baseline_mean, axis=0)
+            pitch_dependency[event_id] = baselined.loc[:, round(offset-window_size/2, 2) : round(offset+window_size/2, 2)].mean(axis=1)
+        pitch_dependency_df = pd.DataFrame(pitch_dependency)
+        for event_id, response in pitch_dependency_df.items():
+            pupil_plot[1].boxplot(response)
+            pupil_plot[1].text(event_id, response.mean() + 0.01, str(round(response.mean(), 3)), ha='center', va='center')
+        #pupil_plot[1].legend(event_id)
+        annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
+        pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+        pupil_plot[0].suptitle(f'Pitch dependency for {animals_to_list}')
+        fig = plt.gcf()
+        if show_plot:
+            pupil_plot[0].show()
+            plt.show()
+        if save_figure:
+            os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
+            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Pitch_Dependency.png')
+        fig.clf()

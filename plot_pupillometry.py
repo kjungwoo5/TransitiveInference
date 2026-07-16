@@ -1,5 +1,5 @@
 import matplotlib as mpl
-mpl.use('Agg')
+# mpl.use('Agg')
 import matplotlib.pyplot as plt
 from pathlib import Path
 import pandas as pd
@@ -11,9 +11,7 @@ import data_io as tfio
 import pupillometry as tfp
 from pupillometry import PupilPlotter
 
-STAGE = 4
-
-SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitiveinference_full.csv")
+SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_full.csv")
 HOME_PATH = Path(r"C:\bonsai\data\JungWoo")
 OUTPUT_PATH = Path(r"C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\Outputs")
 PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
@@ -21,14 +19,9 @@ HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 if __name__ == "__main__":
     
-    types_of_stimuli = ['X']
-    perm_CDEF = list(permutations('CDEF'))
-    for perm in perm_CDEF: 
-        types_of_stimuli.append(''.join(perm))
+    STAGE = 1
     
-    print(types_of_stimuli)
-    
-    r'''pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, STAGE, PARQUET_DIR)
+    pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, STAGE, PARQUET_DIR)
     harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, STAGE, HARP_DIR)
     td_df = tfio.load_aggregate_trial_data(SESSION_PATH, HOME_PATH)
     
@@ -37,11 +30,12 @@ if __name__ == "__main__":
     for a in range(1,5):
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
         plotter.align_pupil_by_session(filter=True)
+        plotter.plot_pitch_dependency(save_figure = False)
+        '''
         plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
-        plotter.plot_baseline_sub_training(show_plot=False)
-        plotter.plot_baseline_sub_testing(show_plot=False)
+        plotter.plot_stage5_perms(show_plot=False)'''
         
-    for a in range(1,5):
+    r'''for a in range(1,5):
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
         plotter.set_early_sessions()
         plotter.align_pupil_by_session(filter=True)
