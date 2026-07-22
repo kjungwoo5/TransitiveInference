@@ -14,6 +14,24 @@ from Analysis.XdetectionCore.xdetectioncore.plotting import plot_shaded_error_ts
 READING_WINDOW = [-2, 5]
 PLOTTING_WINDOW = [-1, 4]
 
+
+def _build_cdef_permutation_colours():
+    """Create distinct but related colour shades for each CDEF permutation."""
+    palette_by_start = {
+        'C': ['#1b5e20', '#2e7d32', '#43a047', '#66bb6a', '#a5d6a7', '#c8e6c9'],
+        'D': ['#0d47a1', '#1565c0', '#1e88e5', '#42a5f5', '#90caf9', '#bbdefb'],
+        'E': ['#b26a00', '#d97706', '#f59e0b', '#fbbf24', '#fde68a', '#fef3c7'],
+        'F': ['#4a148c', '#6a1b9a', '#7b1fa2', '#8e24aa', '#ce93d8', '#e1bee7'],
+    }
+
+    colours = {}
+    for start_letter, palette in palette_by_start.items():
+        ordered_permutations = [perm for perm in permutations('CDEF') if perm[0] == start_letter]
+        for perm, colour in zip(ordered_permutations, palette):
+            colours[''.join(perm)] = colour
+    return colours
+
+
 STIMULUS_COLOURS = {
     'X': 'k',
     'ABCD': 'c',
@@ -34,7 +52,7 @@ STIMULUS_COLOURS = {
     'H': 'saddlebrown', 
     'I': 'firebrick', 
     'J': 'darkred',
-    'CFED': 'r',
+    'CFED': 'r'
 }
 
 OUTPUT_SUBDIRS = {
@@ -67,6 +85,9 @@ class PupilPlotter:
         
 
         self.stage = stage
+        if stage == 5:
+            STIMULUS_COLOURS.update(_build_cdef_permutation_colours())
+        
         self.type_of_analysis = type_of_analysis
         self.output_path = output_path
         self.animals = animals
@@ -508,7 +529,7 @@ class PupilPlotter:
                 )
             fig.clf()
 
-    def aggregate_total(self) -> dict:
+    def aggregate_total(self, baseline_data = False) -> dict:
         total_responses = {}
         for stimulus in self.types_of_stimuli:
             aggregate = []
@@ -516,6 +537,13 @@ class PupilPlotter:
                 if stimulus in self.aligned_pupil_by_session[key]:
                     aggregate.append(self.aligned_pupil_by_session[key][stimulus])
             total_responses[stimulus] = pd.concat(aggregate, axis=0, ignore_index=True)
+        if baseline_data: 
+            for event_id, response in total_responses.items():
+                if self.stage == 1:
+                    baseline_mean = response.loc[:, -0.2:0.2].mean(axis=1)
+                else:
+                    baseline_mean = response.loc[:, -0.2:0.2].mean(axis=1)
+                total_responses[event_id] = response.sub(baseline_mean, axis=0)
         return total_responses
 
     def plot_overall_pupil(self, save_figure = True, show_plot = True):
@@ -771,28 +799,64 @@ class PupilPlotter:
         pip_df = pd.DataFrame(pip_dilations, columns=['pip1', 'pip2', 'pip3', 'pip4', 'stimulus_id'])
         return pip_df
     
-    def plot_pitch_dependency(self, offset = 0.64, window_size = 0.1, save_figure = True, show_plot = True):
+    def plot_pitch_dependency(self, offset = 0.64, window_size = 0.1, save_figure = True, show_plot = True, omit_outliers = True, show_means_as_points = False):
         animals_to_list = ', '.join(self.animals)
 
         aggregated_aligned_pupil = self.aggregate_total()
-        pupil_plot = plt.subplots()
-        pitch_dependency = {}
+        fig, ax = plt.subplots()
+        plot_data = []
+        labels = []
+
+        def _filter_outliers(values):
+            values = np.asarray(values, dtype=float)
+            values = values[~np.isnan(values)]
+            if values.size < 4:
+                return values
+
+            q1, q3 = np.percentile(values, [25, 75])
+            iqr = q3 - q1
+            lower = q1 - 1.5 * iqr
+            upper = q3 + 1.5 * iqr
+            return values[(values >= lower) & (values <= upper)]
+
         for event_id, response in aggregated_aligned_pupil.items():
             baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
-            pitch_dependency[event_id] = baselined.loc[:, round(offset-window_size/2, 2) : round(offset+window_size/2, 2)].mean(axis=1)
-        pitch_dependency_df = pd.DataFrame(pitch_dependency)
-        for event_id, response in pitch_dependency_df.items():
-            pupil_plot[1].boxplot(response)
-            pupil_plot[1].text(event_id, response.mean() + 0.01, str(round(response.mean(), 3)), ha='center', va='center')
-        #pupil_plot[1].legend(event_id)
+            window_slice = baselined.loc[:, round(offset - window_size / 2, 2):round(offset + window_size / 2, 2)]
+            window_means = window_slice.mean(axis=1)
+            filtered_values = _filter_outliers(window_means) if omit_outliers else window_means.to_numpy()
+            if filtered_values.size > 0:
+                plot_data.append(filtered_values)
+                labels.append(event_id)
+
+        if not plot_data:
+            return
+
+        if show_means_as_points:
+            means = [np.mean(values) for values in plot_data]
+            for label, mean in zip(labels, means):
+                ax.scatter(label, mean, color=STIMULUS_COLOURS.get(label, 'black'), s=40)
+                #ax.text(label, mean + 0.01, f'{mean:.3f}', ha='center', va='bottom', fontsize=8)
+        else:
+            box = ax.boxplot(
+                plot_data,
+                labels=labels,
+                patch_artist=True,
+                widths=0.5,
+                showfliers=False,
+            )
+            for patch, event_id in zip(box['boxes'], labels):
+                patch.set_facecolor(STIMULUS_COLOURS.get(event_id, 'lightgray'))
+                patch.set_alpha(0.6)
+
+        ax.set_xlabel('Stimulus ID')
+        ax.set_ylabel('Pupil dilation')
+        ax.set_title(f'Pitch dependency for {animals_to_list} \n')
         annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
-        pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[0].suptitle(f'Pitch dependency for {animals_to_list}')
+        ax.annotate(annotation, xy=(0.3, 1.02), xycoords=ax.get_xaxis_transform())
         fig = plt.gcf()
         if show_plot:
-            pupil_plot[0].show()
-            plt.show()
+            fig.show()
         if save_figure:
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Pitch_Dependency.png')

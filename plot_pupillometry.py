@@ -19,7 +19,7 @@ HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 if __name__ == "__main__":
     
-    STAGE = 1
+    STAGE = 5
     
     pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, STAGE, PARQUET_DIR)
     harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, STAGE, HARP_DIR)
@@ -27,13 +27,19 @@ if __name__ == "__main__":
     
     harp_filtered = tfio.filter_harp_by_successful_trials(harp_df, td_df, print_trial_lengths=False)
     
+    
+    # TODO: Plot these again, but without the X tone now. 
     for a in range(1,5):
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
         plotter.align_pupil_by_session(filter=True)
-        plotter.plot_pitch_dependency(save_figure = False)
-        '''
+        # plotter.plot_pitch_dependency(save_figure = False, show_means_as_points = True)
         plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
-        plotter.plot_stage5_perms(show_plot=False)'''
+        plotter.plot_stage5_perms(show_plot=False)
+    
+    
+    # plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
+    # plotter.align_pupil_by_session(filter=True)
+    # plotter.plot_pitch_dependency(save_figure = False, show_means_as_points = False)
         
     r'''for a in range(1,5):
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
@@ -68,10 +74,13 @@ if __name__ == "__main__":
         plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False, use_median=True)'''
     
 
-    r'''stage3_JK03 = PupilPlotter(pupil_df, harp_df, STAGE, 'testing', OUTPUT_PATH, ['JK03'])
-    stage3_JK03.align_pupil_by_session()
-    #stage3_JK03.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
-    agg_JK03 = stage3_JK03.aggregate_total()
-    for stimulus in agg_JK03.keys():
-        JK03 = agg_JK03[stimulus].dropna(axis = 0,thresh=10)
-        JK03.to_csv(fr'C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\PRET\PRET\JK03_Stage{STAGE}_{stimulus}.csv')'''
+    # # TODO Make a way to baseline the data so it starts from 0, but then only output data from 0s to 4s. This will work better with the PRET model. 
+    # for a in range(1,5):
+    #     plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
+    #     plotter.align_pupil_by_session()
+    #     plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+    #     agg_plotter = plotter.aggregate_total(baseline_data = True)
+    #     for stimulus in agg_plotter.keys():
+    #         pupils_for_stimulus = agg_plotter[stimulus].dropna(axis = 0,thresh=10)
+    #         pupils_for_stimulus.to_csv(fr'C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\PRET\PRET\Data\Stage{STAGE}\JK0{a}_Stage{STAGE}_filtered_{stimulus}.csv')
+            
