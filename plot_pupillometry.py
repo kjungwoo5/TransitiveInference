@@ -28,18 +28,21 @@ if __name__ == "__main__":
     harp_filtered = tfio.filter_harp_by_successful_trials(harp_df, td_df, print_trial_lengths=False)
     
     
-    # TODO: Plot these again, but without the X tone now. 
+    # TODO: Plot these again, but without the X tone now. (pitch dependency) 
+    ############## STAGE 5 ###################
     for a in range(1,5):
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
         plotter.align_pupil_by_session(filter=True)
         # plotter.plot_pitch_dependency(save_figure = False, show_means_as_points = True)
-        plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+        # plotter.plot_overall_distribution(show_plot=False)
+        # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
         plotter.plot_stage5_perms(show_plot=False)
-    
     
     # plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
     # plotter.align_pupil_by_session(filter=True)
     # plotter.plot_pitch_dependency(save_figure = False, show_means_as_points = False)
+    
+    ################ STAGE 4 ################
         
     r'''for a in range(1,5):
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
@@ -73,7 +76,8 @@ if __name__ == "__main__":
         plotter.align_pupil_by_session()
         plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False, use_median=True)'''
     
-
+    
+    ################ GENERATE DATA FOR PRET MODEL #############################
     # # TODO Make a way to baseline the data so it starts from 0, but then only output data from 0s to 4s. This will work better with the PRET model. 
     # for a in range(1,5):
     #     plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])

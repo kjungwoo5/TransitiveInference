@@ -65,15 +65,42 @@ OUTPUT_SUBDIRS = {
 ALL_ANIMALS = ['JK01', 'JK02', 'JK03', 'JK04']
 
 Y_LIMS = {
-    'JK01': (-0.25,0.35),
-    'JK02': (-0.5,0.7),
-    'JK03': (-0.5,0.4),
-    'JK04': (-0.5,0.6),
-    ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
-    'JK01_early_filtered': (-0.3, 0.3),
-    'JK01_late_filtered': (-0.3, 0.3),
-    'JK01_filtered': (-0.3, 0.3),
+    4: {
+        'JK01': (-0.25,0.35),
+        'JK02': (-0.5,0.7),
+        'JK03': (-0.5,0.4),
+        'JK04': (-0.5,0.6),
+        ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
+        'JK01_early_filtered': (-0.3, 0.3),
+        'JK01_late_filtered': (-0.3, 0.3),
+        'JK01_filtered': (-0.15, 0.2),
+        'JK02_filtered': (-0.4, 0.5),
+        'JK03_filtered': (-0.4, 0.6),
+        'JK04_filtered': (-0.5, 0.5),
+    },
+    5: {
+        'JK01': (-0.25,0.35),
+        'JK02': (-0.5,0.7),
+        'JK03': (-0.5,0.4),
+        'JK04': (-0.5,0.6),
+        ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
+        'JK01_early_filtered': (-0.3, 0.3),
+        'JK01_late_filtered': (-0.3, 0.3),
+        'JK01_filtered': (-0.2, 0.35),
+        'JK02_filtered': (-0.3, 0.3),
+        'JK03_filtered': (-0.3, 0.6),
+        'JK04_filtered': (-0.4, 0.7),
+    }
 }
+
+PERMS_Y_LIMS = {
+    'JK01_filtered': (-0.2, 0.2),
+    'JK02_filtered': (-0.3, 0.3),
+    'JK03_filtered': (-0.3, 0.4),
+    'JK04_filtered': (-0.4, 0.3),
+}
+
+
 
 class PupilPlotter:
     def __init__(self, pupil_df: pd.DataFrame, harp_df: pd.DataFrame, stage: int, type_of_analysis: str, output_path: Path, animals: list):
@@ -580,7 +607,7 @@ class PupilPlotter:
             if self.stage == 1:
                 baseline_mean = response.loc[:, -0.2:0.2].mean(axis=1)
             else:
-                baseline_mean = response.loc[:, -1:0].mean(axis=1)
+                baseline_mean = response.loc[:, -0.3:0.3].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
             if not use_median:
                 pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
@@ -592,7 +619,7 @@ class PupilPlotter:
         pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
         annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
+        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
@@ -636,7 +663,7 @@ class PupilPlotter:
         pupil_plot[1].axvline(0, color='k', linestyle='--')
         annotation = f'n = {n_stimuli} stimuli'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
+        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
@@ -677,7 +704,7 @@ class PupilPlotter:
         pupil_plot[1].axvline(0, color='k', linestyle='--')
         annotation = f'n = {n_stimuli} stimuli'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(str(self.animals), (-0.5,0.5)))
+        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
@@ -705,7 +732,7 @@ class PupilPlotter:
         pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
         annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
+        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
@@ -738,7 +765,7 @@ class PupilPlotter:
             pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
             annotation = f'n = {n_stimuli} stimuli'
             pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-            pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
+            pupil_plot[1].set_ylim(PERMS_Y_LIMS.get(animals_to_list, (-0.5,0.5)))
             pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
             pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
             pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
@@ -758,9 +785,14 @@ class PupilPlotter:
         animals_to_list = ', '.join(self.animals)
         aggregated_aligned_pupil = self.aggregate_total()
         plt.pause(0.1)
-        dist_plot = plt.subplots()
+        if self.stage == 5:
+            dist_plot = plt.subplots(figsize=(14,5.4))
+        else: 
+            dist_plot = plt.subplots()
         actual_distribution = {}
         for stimulus in self.types_of_stimuli:
+            if self.stage == 5 and stimulus == 'X':
+                continue
             actual_distribution[stimulus] = len(aggregated_aligned_pupil[stimulus])
             dist_plot[1].bar(stimulus, actual_distribution[stimulus], color=STIMULUS_COLOURS.get(stimulus, None))
             dist_plot[1].text(stimulus, actual_distribution[stimulus] + 5, str(actual_distribution[stimulus]), ha='center',
