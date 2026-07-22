@@ -100,6 +100,19 @@ PERMS_Y_LIMS = {
     'JK04_filtered': (-0.4, 0.3),
 }
 
+STAGE1_FREQUENCIES = {
+    'A': '5275', 
+    'B': '5920', 
+    'C': '6646', 
+    'D': '7459', 
+    'E': '8373', 
+    'F': '9398', 
+    'G': '10550', 
+    'H': '11841', 
+    'I': '13292', 
+    'J': '14919',
+}
+
 
 
 class PupilPlotter:
@@ -604,10 +617,7 @@ class PupilPlotter:
         aggregated_aligned_pupil = self.aggregate_total()
         pupil_plot = plt.subplots()
         for event_id, response in aggregated_aligned_pupil.items():
-            if self.stage == 1:
-                baseline_mean = response.loc[:, -0.2:0.2].mean(axis=1)
-            else:
-                baseline_mean = response.loc[:, -0.3:0.3].mean(axis=1)
+            baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
             if not use_median:
                 pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
@@ -635,6 +645,8 @@ class PupilPlotter:
             else: 
                 fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_median.png')
         fig.clf()
+        
+        
     
     def plot_baseline_sub_training(self, save_figure = True, show_plot = True):
         if self.stage == 2: 
@@ -722,30 +734,11 @@ class PupilPlotter:
         animals_to_list = ', '.join(self.animals)
 
         aggregated_aligned_pupil = self.aggregate_total()
-        pupil_plot = plt.subplots()
-        for event_id, response in aggregated_aligned_pupil.items():
-            baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
-            baselined = response.sub(baseline_mean, axis=0)
-            pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
-            plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
-        pupil_plot[1].legend()
-        pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
-        annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
-        pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
-        pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
-        pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
-        pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
-        pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-        pupil_plot[0].suptitle(f'Baseline subtracted plot for {animals_to_list}')
-        fig = plt.gcf()
-        if show_plot:
-            pupil_plot[0].show()
-        if save_figure:
-            os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted.png')
-        fig.clf()
         
+        # Plot overall
+        self.plot_overall_baseline_sub_aligned_pupil(save_figure=save_figure, show_plot=show_plot)
+        
+        # Plot by start letter
         for start_letter in 'CDEFA':
             pupil_plot = plt.subplots()
             n_stimuli = 0
@@ -830,9 +823,10 @@ class PupilPlotter:
         # Convert pip_dilations into a df with columns of pip1, pip2, pip3, pip4, with label of event_id
         pip_df = pd.DataFrame(pip_dilations, columns=['pip1', 'pip2', 'pip3', 'pip4', 'stimulus_id'])
         return pip_df
-    
-    def plot_pitch_dependency(self, offset = 0.64, window_size = 0.1, save_figure = True, show_plot = True, omit_outliers = True, show_means_as_points = False):
-        animals_to_list = ', '.join(self.animals)
+
+    def plot_pitch_dependency(self, offset = 0.64, window_size = 0.1, save_figure = True, show_plot = True, omit_outliers = True, show_means_as_points = True):
+        animal = [animal.split('_')[0] for animal in self.animals]
+        animals_to_list = ', '.join(animal)
 
         aggregated_aligned_pupil = self.aggregate_total()
         fig, ax = plt.subplots()
@@ -852,6 +846,8 @@ class PupilPlotter:
             return values[(values >= lower) & (values <= upper)]
 
         for event_id, response in aggregated_aligned_pupil.items():
+            if event_id == 'X':
+                continue
             baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
             window_slice = baselined.loc[:, round(offset - window_size / 2, 2):round(offset + window_size / 2, 2)]
@@ -867,8 +863,8 @@ class PupilPlotter:
         if show_means_as_points:
             means = [np.mean(values) for values in plot_data]
             for label, mean in zip(labels, means):
-                ax.scatter(label, mean, color=STIMULUS_COLOURS.get(label, 'black'), s=40)
-                #ax.text(label, mean + 0.01, f'{mean:.3f}', ha='center', va='bottom', fontsize=8)
+                ax.scatter(label, mean, color='black', s=40)
+                # ax.text(label, mean + 0.01, f'{mean:.2f}', ha='center', va='bottom', fontsize=8)
         else:
             box = ax.boxplot(
                 plot_data,
@@ -881,15 +877,18 @@ class PupilPlotter:
                 patch.set_facecolor(STIMULUS_COLOURS.get(event_id, 'lightgray'))
                 patch.set_alpha(0.6)
 
-        ax.set_xlabel('Stimulus ID')
+        ax.set_xlabel('Stimulus Frequency (Hz)')
+        ax.set_xticklabels(STAGE1_FREQUENCIES.values())
         ax.set_ylabel('Pupil dilation')
+        ax.margins(y=0.05)
         ax.set_title(f'Pitch dependency for {animals_to_list} \n')
         annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
         ax.annotate(annotation, xy=(0.3, 1.02), xycoords=ax.get_xaxis_transform())
         fig = plt.gcf()
+        
         if show_plot:
             fig.show()
         if save_figure:
-            os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Pitch_Dependency.png')
+            os.makedirs(fr'{self.output_path}\Pitch Dependency', exist_ok=True)
+            fig.savefig(fr'{self.output_path}\Pitch Dependency\Stage{self.stage}_{animals_to_list}_Pitch_Dependency.png')
         fig.clf()
