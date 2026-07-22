@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from itertools import permutations
+from sklearn.decomposition import PCA
+from sklearn import svm
 
 import behaviour as tfb
 import data_io as tfio
@@ -26,6 +28,67 @@ PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpa
 HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 
+def plot_decoder_pca_classifications(predictors, true_labels, predicted_labels, output_path, title):
+    """Project the input predictors into 2 PCs and plot the fitted classifier's decision boundaries."""
+    predictors = np.asarray(predictors, dtype=float)
+    true_labels = np.asarray(true_labels)
+    predicted_labels = np.asarray(predicted_labels)
+
+    if predictors.shape[0] != true_labels.shape[0] or predictors.shape[0] != predicted_labels.shape[0]:
+        raise ValueError("Predictors and labels must have the same number of samples.")
+
+    pca = PCA(n_components=2)
+    projected = pca.fit_transform(predictors)
+
+    classes = np.unique(predicted_labels)
+    colors = plt.cm.tab10(np.linspace(0, 1, max(len(classes), 1)))
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    if len(classes) >= 2:
+        classifier = svm.SVC(kernel='linear', probability=False, decision_function_shape='ovr')
+        classifier.fit(projected, predicted_labels)
+
+        x_min, x_max = projected[:, 0].min() - 0.5, projected[:, 0].max() + 0.5
+        y_min, y_max = projected[:, 1].min() - 0.5, projected[:, 1].max() + 0.5
+        xx, yy = np.meshgrid(np.linspace(x_min, x_max, 300), np.linspace(y_min, y_max, 300))
+        zz = classifier.decision_function(np.c_[xx.ravel(), yy.ravel()])
+
+        if zz.ndim == 1:
+            zz = zz.reshape(-1, 1)
+
+        for class_idx in range(zz.shape[1]):
+            contour = ax.contour(
+                xx, yy, zz[:, class_idx].reshape(xx.shape),
+                levels=[0],
+                colors=colors[class_idx % len(colors)],
+                linewidths=1.8,
+                alpha=0.9,
+            )
+            ax.clabel(contour, inline=True, fontsize=8, fmt=lambda _: '')
+
+    for class_idx, class_name in enumerate(classes):
+        mask = predicted_labels == class_name
+        ax.scatter(
+            projected[mask, 0],
+            projected[mask, 1],
+            s=60,
+            color=colors[class_idx % len(colors)],
+            alpha=0.85,
+            edgecolor='k',
+            linewidth=0.3,
+            label=str(class_name),
+        )
+
+    ax.set_xlabel('PC1')
+    ax.set_ylabel('PC2')
+    ax.set_title(title)
+    ax.legend(title='Predicted class', bbox_to_anchor=(1.02, 1), loc='upper left')
+    fig.tight_layout()
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=300)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -39,17 +102,13 @@ if __name__ == "__main__":
     
     harp_filtered = tfio.filter_harp_by_successful_trials(harp_df, td_df, print_trial_lengths=False)
     
-    # TODO TO BE RUN AGAIN TO GENERATE DATAFILES
     
-    for animal in ['JK01', 'JK02', 'JK04']:
+    for animal in ['JK01', 'JK02', 'JK03', 'JK04']:
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [animal])
         plotter.align_pupil_by_session(filter=True)
         
-        # [0.04: 0.0600438596491228, 0.1: 0.06302631578947368, 0.2: 0.06298245614035088, 0.5: 0.06109649122807017]
-        # [0.02: 0.06114035087719298, 0.7: 0.05837719298245615, 0.9: 0.05530701754385965]
-        # [1: 0.04956140350877193, 1.5: 0.05263157894736842]
         
-        window_sizes = np.linspace(0, 1, 21)
+        window_sizes = [0.5] # np.linspace(0, 1, 21)
         
         accuracies_by_window = {}
         
@@ -93,11 +152,8 @@ if __name__ == "__main__":
             subsampled_fourth = pip_df.groupby('fourth_tone').sample(min_fourth_tone)
             subsampled_fourth.reset_index(inplace=True)'''
             
-            # print(subsampled_first['first_tone'].value_counts())
-            # print(subsampled_second['second_tone'].value_counts())
-            # print(subsampled_third['third_tone'].value_counts())
-            # print(subsampled_fourth['fourth_tone'].value_counts())
-            # print(subsampled_stimuli['stimulus_id'].value_counts())
+            print(subsampled_first['first_tone'].value_counts())
+            print(subsampled_stimuli['stimulus_id'].value_counts())
             
             
             print('Decoding for first tone position: ')
@@ -117,9 +173,19 @@ if __name__ == "__main__":
             print("Mean accuracy:", np.mean(decoder.accuracy))
             accuracies_by_window[window_size] = [np.mean(decoder.accuracy)]
             
-            # decoder.plot_confusion_matrix(labels = subsampled_first['first_tone'].unique())
-            # plt.show()
-            # print("Fold accuracies:", decoder.fold_accuracy)
+            decoder.plot_confusion_matrix(labels = subsampled_first['first_tone'].unique())
+            plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_confusion_matrix.png")
+
+            classifier = svm.SVC(C=1, class_weight='balanced')
+            classifier.fit(predictors, features)
+            predicted_labels = classifier.predict(predictors)
+            plot_decoder_pca_classifications(
+                predictors,
+                features,
+                predicted_labels,
+                OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_pca_classifications.png",
+                f"{animal} first-tone decoder classifications (2 PCs)",
+            )
             
             
             '''print('Decoding for second tone position: ')
@@ -185,11 +251,22 @@ if __name__ == "__main__":
 
             # Inspect results
             print("Mean accuracy:", np.mean(decoder.accuracy))
-            # decoder.plot_confusion_matrix(labels = subsampled_stimuli['stimulus_id'].unique())
-            # plt.show()
+            decoder.plot_confusion_matrix(labels = subsampled_stimuli['stimulus_id'].unique())
+            plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_confusion_matrix.png")
+
+            classifier = svm.SVC(C=1, class_weight='balanced')
+            classifier.fit(predictors, features)
+            predicted_labels = classifier.predict(predictors)
+            plot_decoder_pca_classifications(
+                predictors,
+                features,
+                predicted_labels,
+                OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_pca_classifications.png",
+                f"{animal} sequence-identity decoder classifications (2 PCs)",
+            )
             
             accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
 
-        print(accuracies_by_window)
-        with open(f'accuracies_by_window_{animal}.json', 'w') as f:
-            json.dump(accuracies_by_window, f)
+        # print(accuracies_by_window)
+        # with open(f'accuracies_by_window_{animal}.json', 'w') as f:
+        #     json.dump(accuracies_by_window, f)
