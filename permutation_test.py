@@ -1,5 +1,5 @@
 import numpy as np
-
+import os
 import json
 
 from pathlib import Path
@@ -7,11 +7,12 @@ import sys
 sys.path.append('../')
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from Analysis.XdetectionCore.xdetectioncore.decoding.decoding_funcs import Decoder
+from joblib import Parallel, delayed
+from tqdm_joblib import tqdm_joblib
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
 from itertools import permutations
 from tqdm import tqdm
 
@@ -42,7 +43,7 @@ def plot_permutation_results(results, title, output_path):
     plt.text(
         0.98,
         0.95,
-        f"p = {p_value:.3f}",
+        f"p = {p_value:.2f}",
         transform=plt.gca().transAxes,
         ha="right",
         va="top",
@@ -99,20 +100,31 @@ def plot_observed_vs_permutation_boxplot(results_by_animal, output_path, data_ty
     plt.close(fig)
 
 
-def run_permutation_test(predictors, features, n_permutations=100, cv_folds=5, n_runs=10):
-    """Run a label-permutation decoder test by retraining the decoder for each shuffled label set."""
-    rng = np.random.default_rng(0)
+def _compute_permuted_accuracy(predictors, features, cv_folds, n_runs, seed):
+    rng = np.random.default_rng(seed)
+    permuted_features = rng.permutation(features)
+    perm_decoder = Decoder(predictors=predictors, features=permuted_features, model_name="svc")
+    perm_decoder.decode(dec_kwargs={"cv_folds": cv_folds, "n_runs": n_runs})
+    return float(np.mean(perm_decoder.accuracy))
 
+
+def run_permutation_test(predictors, features, n_permutations=99, cv_folds=5, n_runs=10, n_jobs=None):
+    """Run a label-permutation decoder test by retraining the decoder for each shuffled label set."""
     observed_decoder = Decoder(predictors=predictors, features=features, model_name="svc")
     observed_decoder.decode(dec_kwargs={"cv_folds": cv_folds, "n_runs": n_runs})
     observed_accuracy = float(np.mean(observed_decoder.accuracy))
 
-    permuted_accuracies = []
-    for _ in tqdm(range(n_permutations), desc="Permutation tests", unit="perm"):
-        permuted_features = rng.permutation(features)
-        perm_decoder = Decoder(predictors=predictors, features=permuted_features, model_name="svc")
-        perm_decoder.decode(dec_kwargs={"cv_folds": cv_folds, "n_runs": n_runs})
-        permuted_accuracies.append(float(np.mean(perm_decoder.accuracy)))
+    if n_jobs is None:
+        n_jobs = max(1, min(n_permutations, (os.cpu_count() or 2) - 1))
+
+    rng = np.random.default_rng(0)
+    seeds = rng.integers(0, np.iinfo(np.int32).max, size=n_permutations, dtype=np.int32)
+
+    with tqdm_joblib(tqdm(desc="Permutation tests", total=n_permutations, unit="perm")):
+        permuted_accuracies = Parallel(n_jobs=n_jobs)(
+            delayed(_compute_permuted_accuracy)(predictors, features, cv_folds, n_runs, int(seed))
+            for seed in seeds
+        )
 
     permuted_accuracies = np.asarray(permuted_accuracies)
     p_value = (np.sum(permuted_accuracies >= observed_accuracy) + 1) / (n_permutations + 1)
@@ -137,7 +149,8 @@ if __name__ == "__main__":
     
     harp_filtered = tfio.filter_harp_by_successful_trials(harp_df, td_df, print_trial_lengths=False)
     
-    # ~25min per permutation test for 100 permutations, 5-fold CV, and 10 runs.
+    # ~1hr per permutation test for 100 permutations, 5-fold CV, and 10 runs.
+    # With parallelisation, ~10 minutes per 100 perms. 
     
     results_by_animal = {}
     
@@ -148,7 +161,7 @@ if __name__ == "__main__":
         
         accuracies_by_window = {}
         
-        print(f'\nwindow size: {0.5}')
+        print(f'\nAnimal: {animal}')
         pip_df = plotter.prep_for_decoding(window_size=0.5)
         
         pip_df.dropna(inplace=True)
