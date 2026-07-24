@@ -17,9 +17,11 @@ OUTPUT_PATH = Path(r"C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\C
 PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
 HARP_DIR = Path(r'X:\Dammy\harpbins')
 
+
+
 if __name__ == "__main__":
     
-    STAGE = 1
+    STAGE = 4
     
     pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, STAGE, PARQUET_DIR)
     harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, STAGE, HARP_DIR)
@@ -30,19 +32,27 @@ if __name__ == "__main__":
     
     # TODO: Plot these again, but without the X tone now. (pitch dependency) 
     ############## STAGE 5 ###################
-    for a in range(1,5):
-        plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
-        plotter.align_pupil_by_session(filter=True)
-        plotter.plot_pitch_dependency()
+    # for a in range(1,5):
+    #     plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
+    #     plotter.align_pupil_by_session(filter=True)
+        # plotter.plot_pitch_dependency()
         # plotter.plot_overall_distribution(show_plot=False)
         # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
         #plotter.plot_stage5_perms(show_plot=False)
     
-    plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
-    plotter.align_pupil_by_session(filter=True)
-    plotter.plot_pitch_dependency()
+    # plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
+    # plotter.align_pupil_by_session(filter=True)
+    # plotter.plot_pitch_dependency()
     
     ################ STAGE 4 ################
+        
+    for a in range(1,5):
+        plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
+        plotter.align_pupil_by_session(filter=True)
+        # plotter.plot_difference('CDEF', 'CFED', (0.64,2.64))
+        plotter.plot_cosine_similarity('ABCD', 'EFGH', (0, 2.64))
+        # plotter.plot_overall_distribution(show_plot=False)
+        # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
         
     r'''for a in range(1,5):
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
@@ -87,4 +97,5 @@ if __name__ == "__main__":
     #     for stimulus in agg_plotter.keys():
     #         pupils_for_stimulus = agg_plotter[stimulus].dropna(axis = 0,thresh=10)
     #         pupils_for_stimulus.to_csv(fr'C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\PRET\PRET\Data\Stage{STAGE}\JK0{a}_Stage{STAGE}_filtered_{stimulus}.csv')
-            
+    
+    

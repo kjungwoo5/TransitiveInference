@@ -2,8 +2,11 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from itertools import permutations
 from pathlib import Path
+from numpy.linalg import norm
 import pandas as pd
 import numpy as np
+import scipy.stats as stats
+from sklearn.linear_model import LinearRegression
 import os
 
 import sys
@@ -672,7 +675,7 @@ class PupilPlotter:
                                 baselined.sem(axis=0), alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
         pupil_plot[1].legend()
         pupil_plot[1].set_xlim((-1,4))
-        pupil_plot[1].axvline(0, color='k', linestyle='--')
+        # pupil_plot[1].axvline(0, color='k', linestyle='--')
         annotation = f'n = {n_stimuli} stimuli'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
         pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
@@ -713,7 +716,7 @@ class PupilPlotter:
                                 baselined.sem(axis=0), alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
         pupil_plot[1].legend()
         pupil_plot[1].set_xlim((-1,4))
-        pupil_plot[1].axvline(0, color='k', linestyle='--')
+        # pupil_plot[1].axvline(0, color='k', linestyle='--')
         annotation = f'n = {n_stimuli} stimuli'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
         pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
@@ -891,4 +894,144 @@ class PupilPlotter:
         if save_figure:
             os.makedirs(fr'{self.output_path}\Pitch Dependency', exist_ok=True)
             fig.savefig(fr'{self.output_path}\Pitch Dependency\Stage{self.stage}_{animals_to_list}_Pitch_Dependency.png')
+        fig.clf()
+        
+    def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by_session = True, show_plot = True, save_figure = True):
+        animals_to_list = ', '.join(self.animals)
+        
+        pupil_plot = plt.subplots()
+        
+        # TODO: Within session shuffle, obtain box plot of data and shuffle, and conduct paired(?) t-test
+        
+        if by_session: 
+            observed_differences = []
+            shuffled_differences = []
+            for session in self.pupil_df['session_id'].unique():
+                if len(self.aligned_pupil_by_session[session].keys()) < 5:
+                    continue
+                baseline_dev = self.aligned_pupil_by_session[session][deviant_stim].loc[:, -0.25:0.25].mean(axis=1)
+                baseline_norm = self.aligned_pupil_by_session[session][normal_stim].loc[:, -0.25:0.25].mean(axis=1)
+                baselined_dev = self.aligned_pupil_by_session[session][deviant_stim].sub(baseline_dev, axis=0)
+                baselined_norm = self.aligned_pupil_by_session[session][normal_stim].sub(baseline_norm, axis=0)
+                
+                # dev_norm_size = baselined_dev.shape[0] - baselined_norm.shape[0]
+                # if dev_norm_size > 0:
+                #     baselined_dev.sample(baselined_dev.shape[0] - dev_norm_size)
+                # else: 
+                #     baselined_norm.sample(baselined_dev.shape[0])
+                
+                dev_pupil = pd.DataFrame(baselined_dev.loc[:, window[0]:window[1]].mean(axis=1))
+                dev_pupil['id'] = deviant_stim
+                
+                norm_pupil = pd.DataFrame(baselined_norm.loc[:, window[0]:window[1]].mean(axis=1))
+                norm_pupil['id'] = normal_stim
+
+                pupils = pd.concat([dev_pupil, norm_pupil], axis = 0).reset_index()
+                shuffled_pupils = pupils.copy()
+                
+                rng = np.random.default_rng(3)
+                shuffled_pupils['id'] = rng.permutation(shuffled_pupils['id'])
+                
+                observed_difference = pupils.groupby(['id'])[0].mean()[deviant_stim] - \
+                                    pupils.groupby(['id'])[0].mean()[normal_stim]
+                
+                shuffled_difference = shuffled_pupils.groupby(['id'])[0].mean()[deviant_stim] - \
+                                    shuffled_pupils.groupby(['id'])[0].mean()[normal_stim]
+                
+                observed_differences.append(observed_difference)
+                shuffled_differences.append(shuffled_difference)
+                
+                
+            
+            data = [observed_differences, shuffled_differences]
+            
+            # n: 9, 9, 11, 9
+            
+            
+            wilcoxon = stats.wilcoxon(data[0], data[1], alternative='greater')
+            
+            
+            box = pupil_plot[1].boxplot(data, labels=["Data", "Shuffle"], patch_artist=True)
+            for patch in box["boxes"]:
+                patch.set(facecolor="lightgray", alpha=0.8)
+            
+            pupil_plot[0].suptitle(f'{animals_to_list} difference in pupil dilation for deviant')
+            pupil_plot[0].text(
+                    0.98,
+                    0.95,
+                    f"p = {wilcoxon.pvalue:.3f}",
+                    transform=plt.gca().transAxes,
+                    ha="right",
+                    va="top",
+                    fontsize=10,
+                    bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+                )
+            
+            
+            fig = plt.gcf()
+            fig.savefig(fr'{self.output_path}\Differences\Stage{self.stage}_{animals_to_list}_Differences.png')
+            fig.clf()
+                    
+    
+    def plot_cosine_similarity(self, stim1id: str, stim2id: str, window: tuple, show_plot = True, save_figure = True):
+        
+        animals_to_list = ', '.join(self.animals)
+        pupil_plot = plt.subplots()
+        print(f'Cosine similarities for {self.animals}')
+        cosine_similarities = []
+        sessions = []
+        for session in self.pupil_df['session_id'].unique():
+            if len(self.aligned_pupil_by_session[session].keys()) < 5:
+                continue
+            sessions.append(session)
+            baseline_1 = self.aligned_pupil_by_session[session][stim1id].loc[:, -0.25:0.25].mean(axis=1)
+            baseline_2 = self.aligned_pupil_by_session[session][stim2id].loc[:, -0.25:0.25].mean(axis=1)
+            baselined_1 = self.aligned_pupil_by_session[session][stim1id].sub(baseline_1, axis=0)
+            baselined_2 = self.aligned_pupil_by_session[session][stim2id].sub(baseline_2, axis=0)
+            
+            stim1 = baselined_1.loc[:, window[0]:window[1]].mean(axis=0)
+            
+            stim2 = baselined_2.loc[:, window[0]:window[1]].mean(axis=0)
+
+            cosine_similarity = np.dot(stim1, stim2) / (norm(stim1) * norm(stim2))
+            print(f'Cosine similarity for {stim1id} and {stim2id} is {cosine_similarity}.')
+            cosine_similarities.append(cosine_similarity)
+            
+        # pupil_plot[1].scatter(sessions, cosine_similarities)
+        session_numbers = np.arange(1, len(sessions) + 1)
+        coef = np.polyfit(session_numbers, cosine_similarities, 1)
+        poly1d_fn = np.poly1d(coef)
+        pupil_plot[1].scatter(session_numbers, cosine_similarities)
+        
+        model = LinearRegression()
+        model.fit(session_numbers.reshape(-1,1), cosine_similarities)
+        
+        r2 = model.score(session_numbers.reshape(-1,1), cosine_similarities)
+        coefs = model.coef_
+        intercept = model.intercept_
+        
+        r_squared = r'$R^2 = $' + str(round(r2,2))
+        
+        pupil_plot[1].plot(session_numbers, poly1d_fn(session_numbers), '--r', label = r_squared)
+        
+        # box = pupil_plot[1].boxplot(data, labels=["Data", "Shuffle"], patch_artist=True)
+        # for patch in box["boxes"]:
+        #     patch.set(facecolor="lightgray", alpha=0.8)
+        
+        pupil_plot[0].suptitle(f'{animals_to_list} cosine similarities in pupil dilation for training stimuli')
+        # pupil_plot[0].text(
+        #         0.98,
+        #         0.95,
+        #         f"p = {wilcoxon.pvalue:.3f}",
+        #         transform=plt.gca().transAxes,
+        #         ha="right",
+        #         va="top",
+        #         fontsize=10,
+        #         bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+        #     )
+        pupil_plot[1].legend()
+            
+        
+        fig = plt.gcf()
+        fig.savefig(fr'{self.output_path}\Similarities\Stage{self.stage}_{animals_to_list}_Similarities.png')
         fig.clf()
