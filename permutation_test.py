@@ -111,7 +111,7 @@ def _compute_permuted_accuracy(predictors, features, cv_folds, n_runs, seed):
 def run_permutation_test(predictors, features, n_permutations=99, cv_folds=5, n_runs=10, n_jobs=None):
     """Run a label-permutation decoder test by retraining the decoder for each shuffled label set."""
     observed_decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-    observed_decoder.decode(dec_kwargs={"cv_folds": cv_folds, "n_runs": n_runs})
+    observed_decoder.decode(dec_kwargs={"cv_folds": cv_folds, "n_runs": 10})
     observed_accuracy = float(np.mean(observed_decoder.accuracy))
 
     if n_jobs is None:
@@ -195,9 +195,9 @@ if __name__ == "__main__":
         first_tone_results = run_permutation_test(
             predictors=predictors,
             features=features,
-            n_permutations=99,
+            n_permutations=999,
             cv_folds=5,
-            n_runs=10,
+            n_runs=1,
         )
 
         print("Observed accuracy:", first_tone_results["observed_accuracy"])
@@ -229,9 +229,9 @@ if __name__ == "__main__":
         sequence_results = run_permutation_test(
             predictors=predictors,
             features=features,
-            n_permutations=99,
+            n_permutations=999,
             cv_folds=5,
-            n_runs=10,
+            n_runs=1,
         )
 
         print("Observed accuracy:", sequence_results["observed_accuracy"])
