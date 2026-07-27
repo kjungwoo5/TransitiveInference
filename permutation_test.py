@@ -43,7 +43,7 @@ def plot_permutation_results(results, title, output_path):
     plt.text(
         0.98,
         0.95,
-        f"p = {p_value:.2f}",
+        f"p = {p_value:.3f}",
         transform=plt.gca().transAxes,
         ha="right",
         va="top",
@@ -207,7 +207,7 @@ if __name__ == "__main__":
         plot_permutation_results(
             first_tone_results,
             title=f"{animal} - First tone permutation test",
-            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_first_tone_permutation_hist.png",
+            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_first_tone_permutation_hist_999.png",
         )
         results_by_animal[animal]["first_tone"] = {
             "observed_accuracy": first_tone_results["observed_accuracy"],
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         plot_permutation_results(
             sequence_results,
             title=f"{animal} - Sequence identity permutation test",
-            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_sequence_identity_permutation_hist.png",
+            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_sequence_identity_permutation_hist_999.png",
         )
         results_by_animal[animal]["sequence_identity"] = {
             "observed_accuracy": sequence_results["observed_accuracy"],
@@ -255,16 +255,16 @@ if __name__ == "__main__":
 
     plot_observed_vs_permutation_boxplot(
         results_by_animal,
-        OUTPUT_PATH / "Permutation Tests" / "sequence_identity_observed_vs_permutation_mean_boxplot.png",
+        OUTPUT_PATH / "Permutation Tests" / "sequence_identity_observed_vs_permutation_mean_boxplot_999.png",
         data_type = 'sequence_identity'
     )
 
     plot_observed_vs_permutation_boxplot(
         results_by_animal,
-        OUTPUT_PATH / "Permutation Tests" / "first_tone_observed_vs_permutation_mean_boxplot.png",
+        OUTPUT_PATH / "Permutation Tests" / "first_tone_observed_vs_permutation_mean_boxplot_999.png",
         data_type = 'first_tone'
     )
     
     # Save results to a JSON file
-    with open(OUTPUT_PATH / "Permutation Tests" / "permutation_test_results.json", "w") as f:
+    with open(OUTPUT_PATH / "Permutation Tests" / "permutation_test_results_999.json", "w") as f:
         json.dump(results_by_animal, f, indent=4)
