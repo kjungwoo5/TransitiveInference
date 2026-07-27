@@ -805,7 +805,7 @@ class PupilPlotter:
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\Actual Distributions\Stage{self.stage}_{animals_to_list}_distribution.png')
         fig.clf()
     
-    def prep_for_decoding(self, window_size = 0.1):
+    def prep_for_decoding(self, window_size = 0.1, tmax = 0.64):
         pip_dilations = []
         aggregated_aligned_pupil = self.aggregate_total()
         
@@ -816,11 +816,12 @@ class PupilPlotter:
                 baseline_mean = row.loc[-0.25:0.25].mean()
                 row = row.sub(baseline_mean)
                 
-                # Get mean pupil dilation from windows of 100ms centred around 640ms, 1140ms, 1640ms, and 2140ms respectively
-                a = row.loc[0.64-window_size/2 : 0.64+window_size/2].mean()
-                b = row.loc[1.14-window_size/2 : 1.14+window_size/2].mean()
-                c = row.loc[1.64-window_size/2 : 1.64+window_size/2].mean()
-                d = row.loc[2.14-window_size/2 : 2.14+window_size/2].mean()
+                # Get mean pupil dilation from windows of 100ms centred around 
+                # tmax (640ms), tmax + 500ms, tmax + 1000ms, and tmax + 1500ms respectively
+                a = row.loc[tmax-window_size/2 : tmax+window_size/2].mean()
+                b = row.loc[tmax+0.5-window_size/2 : tmax+0.5+window_size/2].mean()
+                c = row.loc[tmax+1.0-window_size/2 : tmax+1.0+window_size/2].mean()
+                d = row.loc[tmax+1.5-window_size/2 : tmax+1.5+window_size/2].mean()
                 pip_dilation.append([a,b,c,d, event_id])
             pip_dilations.extend(pip_dilation)
         # Convert pip_dilations into a df with columns of pip1, pip2, pip3, pip4, with label of event_id
@@ -893,7 +894,7 @@ class PupilPlotter:
             fig.show()
         if save_figure:
             os.makedirs(fr'{self.output_path}\Pitch Dependency', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\Pitch Dependency\Stage{self.stage}_{animals_to_list}_Pitch_Dependency.png')
+            fig.savefig(fr'{self.output_path}\Pitch Dependency\Stage{self.stage}_{animals_to_list}_Pitch_Dependency_{offset}.png')
         fig.clf()
         
     def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by_session = True, show_plot = True, save_figure = True):
