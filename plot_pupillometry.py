@@ -21,7 +21,7 @@ HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 if __name__ == "__main__":
     
-    STAGE = 1
+    STAGE = 4
     
     pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, STAGE, PARQUET_DIR)
     harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, STAGE, HARP_DIR)
@@ -38,9 +38,9 @@ if __name__ == "__main__":
     # # plotter.plot_overall_distribution(show_plot=False)
     # # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
     # # plotter.plot_stage5_perms(show_plot=False)
-    plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
-    plotter.align_pupil_by_session(filter=True)
-    plotter.plot_pitch_dependency(offset = 0.5)
+    # plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
+    # plotter.align_pupil_by_session(filter=True)
+    # plotter.plot_pitch_dependency(offset = 0.5)
      
     ############## STAGE 5 ###################
     # for a in range(1,5):
@@ -54,13 +54,13 @@ if __name__ == "__main__":
     
     ################ STAGE 4 ################
         
-    # for a in range(1,5):
-    #     plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
-    #     plotter.align_pupil_by_session(filter=True)
-    #     # plotter.plot_difference('CDEF', 'CFED', (0.64,2.64))
-    #     plotter.plot_cosine_similarity('ABCD', 'EFGH', (0, 2.64))
-    #     # plotter.plot_overall_distribution(show_plot=False)
-    #     # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+    for a in range(1,5):
+        plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
+        plotter.align_pupil_by_session(filter=True)
+        plotter.plot_difference('CDEF', 'CFED', (0.5,2.50))
+        plotter.plot_cosine_similarity('ABCD', 'EFGH', (0, 2.5))
+        # plotter.plot_overall_distribution(show_plot=False)
+        # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
         
     r'''for a in range(1,5):
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
