@@ -11,6 +11,7 @@ from joblib import Parallel, delayed
 from tqdm_joblib import tqdm_joblib
 
 import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 from itertools import permutations
