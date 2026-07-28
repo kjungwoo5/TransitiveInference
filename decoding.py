@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 import json
@@ -7,6 +8,7 @@ import sys
 sys.path.append('../')
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from Analysis.XdetectionCore.xdetectioncore.decoding.decoding_funcs import Decoder
+from joblib import Parallel, delayed
 
 import matplotlib as mpl
 mpl.use('Agg')
@@ -92,6 +94,25 @@ def plot_decoder_pca_classifications(predictors, true_labels, predicted_labels, 
     plt.close(fig)
 
 
+def _run_decoder_task(label, predictors, features, animal, window_size, output_path, labels, save_suffix):
+    """Run one decoder fit and save its confusion matrix plot."""
+    decoder = Decoder(predictors=predictors, features=features, model_name="svc")
+    decoder.decode(
+        dec_kwargs={"cv_folds": 5, "n_runs": 10},
+        parallel_flag=True,
+    )
+
+    accuracy = float(np.mean(decoder.accuracy))
+    decoder.plot_confusion_matrix(labels=labels)
+
+    save_path = output_path / "Decoding" / f"Stage5_{animal}_{save_suffix}_confusion_matrix_{window_size}.png"
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(save_path)
+    plt.close("all")
+
+    return label, accuracy
+
+
 if __name__ == "__main__":
     
     STAGE = 5
@@ -109,7 +130,7 @@ if __name__ == "__main__":
         plotter.align_pupil_by_session(filter=True)
         
         
-        window_sizes = [0, 0.5] # np.linspace(0, 1, 21)
+        window_sizes = np.linspace(0, 1, 21)
         offsets = [0.25, 0.38, 0.5, 0.63, 0.75]
         
         for offset in offsets: 
@@ -156,109 +177,83 @@ if __name__ == "__main__":
                 subsampled_fourth.reset_index(inplace=True)
                 
                 print(subsampled_first['first_tone'].value_counts())
+                print(subsampled_second['second_tone'].value_counts())
+                print(subsampled_third['third_tone'].value_counts())
+                print(subsampled_fourth['fourth_tone'].value_counts())
                 print(subsampled_stimuli['stimulus_id'].value_counts())
                 
                 
-                print('Decoding for first tone position: ')
-                predictors = subsampled_first[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-                features = subsampled_first['first_tone'].to_numpy()
-                
-                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-                
-                decoder.decode(
-                dec_kwargs={
-                    "cv_folds": 5,      # 5-fold cross-validation
-                    "n_runs": 10       # repeat a few times
-                    }
+                task_specs = [
+                    (
+                        'first_tone_position',
+                        subsampled_first[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                        subsampled_first['first_tone'].to_numpy(),
+                        animal,
+                        window_size,
+                        OUTPUT_PATH,
+                        subsampled_first['first_tone'].unique(),
+                        'first_tone_position',
+                    ),
+                    (
+                        'second_tone_position',
+                        subsampled_second[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                        subsampled_second['second_tone'].to_numpy(),
+                        animal,
+                        window_size,
+                        OUTPUT_PATH,
+                        subsampled_second['second_tone'].unique(),
+                        'second_tone_position',
+                    ),
+                    (
+                        'third_tone_position',
+                        subsampled_third[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                        subsampled_third['third_tone'].to_numpy(),
+                        animal,
+                        window_size,
+                        OUTPUT_PATH,
+                        subsampled_third['third_tone'].unique(),
+                        'third_tone_position',
+                    ),
+                    (
+                        'fourth_tone_position',
+                        subsampled_fourth[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                        subsampled_fourth['fourth_tone'].to_numpy(),
+                        animal,
+                        window_size,
+                        OUTPUT_PATH,
+                        subsampled_fourth['fourth_tone'].unique(),
+                        'fourth_tone_position',
+                    ),
+                    (
+                        'sequence_identity',
+                        subsampled_stimuli[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                        subsampled_stimuli['stimulus_id'].to_numpy(),
+                        animal,
+                        window_size,
+                        OUTPUT_PATH,
+                        subsampled_stimuli['stimulus_id'].unique(),
+                        'sequence_identity',
+                    ),
+                ]
+
+                n_workers = min(len(task_specs), max(1, os.cpu_count() - 1))
+                results = Parallel(n_jobs=n_workers, prefer='threads')(
+                    delayed(_run_decoder_task)(
+                        label,
+                        predictors,
+                        features,
+                        animal,
+                        window_size,
+                        output_path,
+                        labels,
+                        save_suffix,
+                    )
+                    for label, predictors, features, animal, window_size, output_path, labels, save_suffix in task_specs
                 )
 
-                # Inspect results
-                print("Mean accuracy:", np.mean(decoder.accuracy))
-                accuracies_by_window[window_size] = [np.mean(decoder.accuracy)]
-                
-                decoder.plot_confusion_matrix(labels = subsampled_first['first_tone'].unique())
-                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_confusion_matrix_{window_size}.png")
-
-                
-                
-                print('Decoding for second tone position: ')
-                predictors = subsampled_second[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-                features = subsampled_second['second_tone'].to_numpy()
-                
-                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-                
-                decoder.decode(
-                dec_kwargs={
-                    "cv_folds": 5,      # 5-fold cross-validation
-                    "n_runs": 10       # repeat a few times
-                    }
-                )
-
-                # Inspect results
-                print("Mean accuracy:", np.mean(decoder.accuracy))
-                decoder.plot_confusion_matrix(labels = subsampled_second['second_tone'].unique())
-                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_second_tone_confusion_matrix_{window_size}.png")
-                accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
-
-                print('Decoding for third tone position: ')
-                predictors = subsampled_third[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-                features = subsampled_third['third_tone'].to_numpy()
-                
-                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-                
-                decoder.decode(
-                dec_kwargs={
-                    "cv_folds": 5,      # 5-fold cross-validation
-                    "n_runs": 10       # repeat a few times
-                    }
-                )
-
-                # Inspect results
-                print("Mean accuracy:", np.mean(decoder.accuracy))
-                decoder.plot_confusion_matrix(labels = subsampled_third['third_tone'].unique())
-                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_third_tone_confusion_matrix_{window_size}.png")
-                accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
-                
-                print('Decoding for fourth tone position: ')
-                predictors = subsampled_fourth[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-                features = subsampled_fourth['fourth_tone'].to_numpy()
-                
-                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-                
-                decoder.decode(
-                dec_kwargs={
-                    "cv_folds": 5,      # 5-fold cross-validation
-                    "n_runs": 10       # repeat a few times
-                    }
-                )
-
-                # Inspect results
-                print("Mean accuracy:", np.mean(decoder.accuracy))
-                decoder.plot_confusion_matrix(labels = subsampled_fourth['fourth_tone'].unique())
-                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_fourth_tone_confusion_matrix_{window_size}.png")
-                accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
-                
-                
-                print('Decoding for sequence identity: ')
-                predictors = subsampled_stimuli[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-                features = subsampled_stimuli['stimulus_id'].to_numpy()
-                
-                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-                
-                decoder.decode(
-                dec_kwargs={
-                    "cv_folds": 5,      # 5-fold cross-validation
-                    "n_runs": 10       # repeat a few times
-                    }
-                )
-
-                # Inspect results
-                print("Mean accuracy:", np.mean(decoder.accuracy))
-                decoder.plot_confusion_matrix(labels = subsampled_stimuli['stimulus_id'].unique())
-                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_confusion_matrix_{window_size}.png")
-
-                
-                accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
+                accuracies_by_window[window_size] = [accuracy for _, accuracy in results]
+                for label, accuracy in results:
+                    print(f"{label} mean accuracy: {accuracy:.4f}")
 
             print(accuracies_by_window)
             with open(f'accuracies_by_window_{animal}_{offset}.json', 'w') as f:
