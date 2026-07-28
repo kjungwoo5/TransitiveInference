@@ -9,6 +9,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from Analysis.XdetectionCore.xdetectioncore.decoding.decoding_funcs import Decoder
 
 import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -109,164 +110,156 @@ if __name__ == "__main__":
         
         
         window_sizes = [0, 0.5] # np.linspace(0, 1, 21)
+        offsets = [0.25, 0.38, 0.5, 0.63, 0.75]
         
-        accuracies_by_window = {}
+        for offset in offsets: 
+            accuracies_by_window = {}
         
-        for window_size in window_sizes:
-            print(f'\nwindow size: {window_size}')
-            pip_df = plotter.prep_for_decoding(window_size=window_size, tmax= 0.5)
-            
-            pip_df.dropna(inplace=True)
-            
-            pip_df = pip_df[pip_df['stimulus_id'] != 'X']
-            pip_df = pip_df[pip_df['stimulus_id'] != 'GHAB']
-            pip_df = pip_df[pip_df['stimulus_id'] != 'ABGH']
-            
-            pip_df['first_tone'] = pip_df['stimulus_id'].str[0]
-            pip_df['second_tone'] = pip_df['stimulus_id'].str[1]
-            pip_df['third_tone'] = pip_df['stimulus_id'].str[2]
-            pip_df['fourth_tone'] = pip_df['stimulus_id'].str[3]
-            
-            # Sample by minimum number of occurrences for all stimuli 
-            min_stimulus_id = pip_df['stimulus_id'].value_counts().min()
-            subsampled_stimuli = pip_df.groupby('stimulus_id').sample(min_stimulus_id)
-            subsampled_stimuli.reset_index(inplace=True)
-            
-            # Sample by minimum number of occurrences for first tones
-            min_first_tone = pip_df['first_tone'].value_counts().min()
-            subsampled_first = pip_df.groupby('first_tone').sample(min_first_tone)
-            subsampled_first.reset_index(inplace=True)
-            
-            '''# Sample by minimum number of occurrences for second tones
-            min_second_tone = pip_df['second_tone'].value_counts().min()
-            subsampled_second = pip_df.groupby('second_tone').sample(min_second_tone)
-            subsampled_second.reset_index(inplace=True)
-            
-            # Sample by minimum number of occurrences for third tones
-            min_third_tone = pip_df['third_tone'].value_counts().min()
-            subsampled_third = pip_df.groupby('third_tone').sample(min_third_tone)
-            subsampled_third.reset_index(inplace=True)
-            
-            # Sample by minimum number of occurrences for fourth tones
-            min_fourth_tone = pip_df['fourth_tone'].value_counts().min()
-            subsampled_fourth = pip_df.groupby('fourth_tone').sample(min_fourth_tone)
-            subsampled_fourth.reset_index(inplace=True)'''
-            
-            print(subsampled_first['first_tone'].value_counts())
-            print(subsampled_stimuli['stimulus_id'].value_counts())
-            
-            
-            print('Decoding for first tone position: ')
-            predictors = subsampled_first[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-            features = subsampled_first['first_tone'].to_numpy()
-            
-            decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-            
-            decoder.decode(
-            dec_kwargs={
-                "cv_folds": 5,      # 5-fold cross-validation
-                "n_runs": 10       # repeat a few times
-                }
-            )
+            for window_size in window_sizes:
+                print(f'\nwindow size: {window_size}')
+                pip_df = plotter.prep_for_decoding(window_size=window_size, tmax= 0.5)
+                
+                pip_df.dropna(inplace=True)
+                
+                pip_df = pip_df[pip_df['stimulus_id'] != 'X']
+                pip_df = pip_df[pip_df['stimulus_id'] != 'GHAB']
+                pip_df = pip_df[pip_df['stimulus_id'] != 'ABGH']
+                
+                pip_df['first_tone'] = pip_df['stimulus_id'].str[0]
+                pip_df['second_tone'] = pip_df['stimulus_id'].str[1]
+                pip_df['third_tone'] = pip_df['stimulus_id'].str[2]
+                pip_df['fourth_tone'] = pip_df['stimulus_id'].str[3]
+                
+                # Sample by minimum number of occurrences for all stimuli 
+                min_stimulus_id = pip_df['stimulus_id'].value_counts().min()
+                subsampled_stimuli = pip_df.groupby('stimulus_id').sample(min_stimulus_id)
+                subsampled_stimuli.reset_index(inplace=True)
+                
+                # Sample by minimum number of occurrences for first tones
+                min_first_tone = pip_df['first_tone'].value_counts().min()
+                subsampled_first = pip_df.groupby('first_tone').sample(min_first_tone)
+                subsampled_first.reset_index(inplace=True)
+                
+                # Sample by minimum number of occurrences for second tones
+                min_second_tone = pip_df['second_tone'].value_counts().min()
+                subsampled_second = pip_df.groupby('second_tone').sample(min_second_tone)
+                subsampled_second.reset_index(inplace=True)
+                
+                # Sample by minimum number of occurrences for third tones
+                min_third_tone = pip_df['third_tone'].value_counts().min()
+                subsampled_third = pip_df.groupby('third_tone').sample(min_third_tone)
+                subsampled_third.reset_index(inplace=True)
+                
+                # Sample by minimum number of occurrences for fourth tones
+                min_fourth_tone = pip_df['fourth_tone'].value_counts().min()
+                subsampled_fourth = pip_df.groupby('fourth_tone').sample(min_fourth_tone)
+                subsampled_fourth.reset_index(inplace=True)
+                
+                print(subsampled_first['first_tone'].value_counts())
+                print(subsampled_stimuli['stimulus_id'].value_counts())
+                
+                
+                print('Decoding for first tone position: ')
+                predictors = subsampled_first[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
+                features = subsampled_first['first_tone'].to_numpy()
+                
+                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
+                
+                decoder.decode(
+                dec_kwargs={
+                    "cv_folds": 5,      # 5-fold cross-validation
+                    "n_runs": 10       # repeat a few times
+                    }
+                )
 
-            # Inspect results
-            print("Mean accuracy:", np.mean(decoder.accuracy))
-            accuracies_by_window[window_size] = [np.mean(decoder.accuracy)]
-            
-            decoder.plot_confusion_matrix(labels = subsampled_first['first_tone'].unique())
-            plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_confusion_matrix_{window_size}.png")
+                # Inspect results
+                print("Mean accuracy:", np.mean(decoder.accuracy))
+                accuracies_by_window[window_size] = [np.mean(decoder.accuracy)]
+                
+                decoder.plot_confusion_matrix(labels = subsampled_first['first_tone'].unique())
+                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_confusion_matrix_{window_size}.png")
 
-            # classifier = svm.SVC(C=1, class_weight='balanced')
-            # classifier.fit(predictors, features)
-            # predicted_labels = classifier.predict(predictors)
-            # plot_decoder_pca_classifications(
-            #     predictors,
-            #     features,
-            #     predicted_labels,
-            #     OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_pca_classifications.png",
-            #     f"{animal} first-tone decoder classifications (2 PCs)",
-            # )
-            
-            
-            '''print('Decoding for second tone position: ')
-            predictors = subsampled_second[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-            features = subsampled_second['second_tone'].to_numpy()
-            
-            decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-            
-            decoder.decode(
-            dec_kwargs={
-                "cv_folds": 5,      # 5-fold cross-validation
-                "n_runs": 10       # repeat a few times
-                }
-            )
+                
+                
+                print('Decoding for second tone position: ')
+                predictors = subsampled_second[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
+                features = subsampled_second['second_tone'].to_numpy()
+                
+                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
+                
+                decoder.decode(
+                dec_kwargs={
+                    "cv_folds": 5,      # 5-fold cross-validation
+                    "n_runs": 10       # repeat a few times
+                    }
+                )
 
-            # Inspect results
-            print("Mean accuracy:", np.mean(decoder.accuracy))
-            
-            print('Decoding for third tone position: ')
-            predictors = subsampled_third[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-            features = subsampled_third['third_tone'].to_numpy()
-            
-            decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-            
-            decoder.decode(
-            dec_kwargs={
-                "cv_folds": 5,      # 5-fold cross-validation
-                "n_runs": 10       # repeat a few times
-                }
-            )
+                # Inspect results
+                print("Mean accuracy:", np.mean(decoder.accuracy))
+                decoder.plot_confusion_matrix(labels = subsampled_second['second_tone'].unique())
+                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_second_tone_confusion_matrix_{window_size}.png")
+                accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
 
-            # Inspect results
-            print("Mean accuracy:", np.mean(decoder.accuracy))
-            
-            print('Decoding for fourth tone position: ')
-            predictors = subsampled_fourth[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-            features = subsampled_fourth['fourth_tone'].to_numpy()
-            
-            decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-            
-            decoder.decode(
-            dec_kwargs={
-                "cv_folds": 5,      # 5-fold cross-validation
-                "n_runs": 10       # repeat a few times
-                }
-            )
+                print('Decoding for third tone position: ')
+                predictors = subsampled_third[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
+                features = subsampled_third['third_tone'].to_numpy()
+                
+                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
+                
+                decoder.decode(
+                dec_kwargs={
+                    "cv_folds": 5,      # 5-fold cross-validation
+                    "n_runs": 10       # repeat a few times
+                    }
+                )
 
-            # Inspect results
-            print("Mean accuracy:", np.mean(decoder.accuracy))'''
-            
-            print('Decoding for sequence identity: ')
-            predictors = subsampled_stimuli[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
-            features = subsampled_stimuli['stimulus_id'].to_numpy()
-            
-            decoder = Decoder(predictors=predictors, features=features, model_name="svc")
-            
-            decoder.decode(
-            dec_kwargs={
-                "cv_folds": 5,      # 5-fold cross-validation
-                "n_runs": 10       # repeat a few times
-                }
-            )
+                # Inspect results
+                print("Mean accuracy:", np.mean(decoder.accuracy))
+                decoder.plot_confusion_matrix(labels = subsampled_third['third_tone'].unique())
+                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_third_tone_confusion_matrix_{window_size}.png")
+                accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
+                
+                print('Decoding for fourth tone position: ')
+                predictors = subsampled_fourth[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
+                features = subsampled_fourth['fourth_tone'].to_numpy()
+                
+                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
+                
+                decoder.decode(
+                dec_kwargs={
+                    "cv_folds": 5,      # 5-fold cross-validation
+                    "n_runs": 10       # repeat a few times
+                    }
+                )
 
-            # Inspect results
-            print("Mean accuracy:", np.mean(decoder.accuracy))
-            decoder.plot_confusion_matrix(labels = subsampled_stimuli['stimulus_id'].unique())
-            plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_confusion_matrix_{window_size}.png")
+                # Inspect results
+                print("Mean accuracy:", np.mean(decoder.accuracy))
+                decoder.plot_confusion_matrix(labels = subsampled_fourth['fourth_tone'].unique())
+                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_fourth_tone_confusion_matrix_{window_size}.png")
+                accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
+                
+                
+                print('Decoding for sequence identity: ')
+                predictors = subsampled_stimuli[['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float)
+                features = subsampled_stimuli['stimulus_id'].to_numpy()
+                
+                decoder = Decoder(predictors=predictors, features=features, model_name="svc")
+                
+                decoder.decode(
+                dec_kwargs={
+                    "cv_folds": 5,      # 5-fold cross-validation
+                    "n_runs": 10       # repeat a few times
+                    }
+                )
 
-            # classifier = svm.SVC(C=1, class_weight='balanced')
-            # classifier.fit(predictors, features)
-            # predicted_labels = classifier.predict(predictors)
-            # plot_decoder_pca_classifications(
-            #     predictors,
-            #     features,
-            #     predicted_labels,
-            #     OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_pca_classifications.png",
-            #     f"{animal} sequence-identity decoder classifications (2 PCs)",
-            # )
-            
-            accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
+                # Inspect results
+                print("Mean accuracy:", np.mean(decoder.accuracy))
+                decoder.plot_confusion_matrix(labels = subsampled_stimuli['stimulus_id'].unique())
+                plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_confusion_matrix_{window_size}.png")
 
-        # print(accuracies_by_window)
-        # with open(f'accuracies_by_window_{animal}_500.json', 'w') as f:
-        #     json.dump(accuracies_by_window, f)
+                
+                accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
+
+            print(accuracies_by_window)
+            with open(f'accuracies_by_window_{animal}_{offset}.json', 'w') as f:
+                json.dump(accuracies_by_window, f)
