@@ -805,7 +805,7 @@ class PupilPlotter:
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\Actual Distributions\Stage{self.stage}_{animals_to_list}_distribution.png')
         fig.clf()
     
-    def prep_for_decoding(self, window_size = 0.1, tmax = 0.64):
+    def prep_for_decoding(self, window_size = 0.1, tmax = 0.64, time_from_next_pip = None):
         pip_dilations = []
         aggregated_aligned_pupil = self.aggregate_total()
         
@@ -816,12 +816,20 @@ class PupilPlotter:
                 baseline_mean = row.loc[-0.25:0.25].mean()
                 row = row.sub(baseline_mean)
                 
-                # Get mean pupil dilation from windows of 100ms centred around 
-                # tmax (640ms), tmax + 500ms, tmax + 1000ms, and tmax + 1500ms respectively
-                a = row.loc[tmax-window_size/2 : tmax+window_size/2].mean()
-                b = row.loc[tmax+0.5-window_size/2 : tmax+0.5+window_size/2].mean()
-                c = row.loc[tmax+1.0-window_size/2 : tmax+1.0+window_size/2].mean()
-                d = row.loc[tmax+1.5-window_size/2 : tmax+1.5+window_size/2].mean()
+                if time_from_next_pip == None: 
+                    # Get mean pupil dilation from windows of 100ms centred around 
+                    # tmax (640ms), tmax + 500ms, tmax + 1000ms, and tmax + 1500ms respectively
+                    a = row.loc[tmax-window_size/2 : tmax+window_size/2].mean()
+                    b = row.loc[tmax+0.5-window_size/2 : tmax+0.5+window_size/2].mean()
+                    c = row.loc[tmax+1.0-window_size/2 : tmax+1.0+window_size/2].mean()
+                    d = row.loc[tmax+1.5-window_size/2 : tmax+1.5+window_size/2].mean()
+                else: 
+                    # Get mean pupil dilation from times going back from next pip time
+                    # 0.5-window, 1.0-window, 1.5-window, 2.0-window respectively
+                    a = row.loc[0.5-time_from_next_pip : 0.5].mean()
+                    b = row.loc[1.0-time_from_next_pip : 1.0].mean()
+                    c = row.loc[1.5-time_from_next_pip : 1.5].mean()
+                    d = row.loc[2.0-time_from_next_pip : 2.0].mean()
                 pip_dilation.append([a,b,c,d, event_id])
             pip_dilations.extend(pip_dilation)
         # Convert pip_dilations into a df with columns of pip1, pip2, pip3, pip4, with label of event_id
