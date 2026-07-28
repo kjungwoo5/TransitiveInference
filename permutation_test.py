@@ -163,7 +163,7 @@ if __name__ == "__main__":
         accuracies_by_window = {}
         
         print(f'\nAnimal: {animal}')
-        pip_df = plotter.prep_for_decoding(window_size=0.5)
+        pip_df = plotter.prep_for_decoding(window_size=0.5, tmax=0.5)
         
         pip_df.dropna(inplace=True)
         

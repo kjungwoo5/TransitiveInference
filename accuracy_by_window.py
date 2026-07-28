@@ -16,7 +16,7 @@ type_of_plot = {
 
 for a in range(1,5):
     # Read data
-    df = pd.read_json(fr'C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\accuracies_by_window_JK0{a}.json').transpose()
+    df = pd.read_json(fr'C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\accuracies_by_window_JK0{a}_500.json').transpose()
     print(df.head())
 
     for i in range(0,2):

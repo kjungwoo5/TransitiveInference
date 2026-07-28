@@ -108,13 +108,13 @@ if __name__ == "__main__":
         plotter.align_pupil_by_session(filter=True)
         
         
-        window_sizes = [0.5] # np.linspace(0, 1, 21)
+        window_sizes = [0, 0.5] # np.linspace(0, 1, 21)
         
         accuracies_by_window = {}
         
         for window_size in window_sizes:
             print(f'\nwindow size: {window_size}')
-            pip_df = plotter.prep_for_decoding(window_size=window_size)
+            pip_df = plotter.prep_for_decoding(window_size=window_size, tmax= 0.5)
             
             pip_df.dropna(inplace=True)
             
@@ -174,18 +174,18 @@ if __name__ == "__main__":
             accuracies_by_window[window_size] = [np.mean(decoder.accuracy)]
             
             decoder.plot_confusion_matrix(labels = subsampled_first['first_tone'].unique())
-            plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_confusion_matrix.png")
+            plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_confusion_matrix_{window_size}.png")
 
-            classifier = svm.SVC(C=1, class_weight='balanced')
-            classifier.fit(predictors, features)
-            predicted_labels = classifier.predict(predictors)
-            plot_decoder_pca_classifications(
-                predictors,
-                features,
-                predicted_labels,
-                OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_pca_classifications.png",
-                f"{animal} first-tone decoder classifications (2 PCs)",
-            )
+            # classifier = svm.SVC(C=1, class_weight='balanced')
+            # classifier.fit(predictors, features)
+            # predicted_labels = classifier.predict(predictors)
+            # plot_decoder_pca_classifications(
+            #     predictors,
+            #     features,
+            #     predicted_labels,
+            #     OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_first_tone_position_pca_classifications.png",
+            #     f"{animal} first-tone decoder classifications (2 PCs)",
+            # )
             
             
             '''print('Decoding for second tone position: ')
@@ -252,21 +252,21 @@ if __name__ == "__main__":
             # Inspect results
             print("Mean accuracy:", np.mean(decoder.accuracy))
             decoder.plot_confusion_matrix(labels = subsampled_stimuli['stimulus_id'].unique())
-            plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_confusion_matrix.png")
+            plt.savefig(OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_confusion_matrix_{window_size}.png")
 
-            classifier = svm.SVC(C=1, class_weight='balanced')
-            classifier.fit(predictors, features)
-            predicted_labels = classifier.predict(predictors)
-            plot_decoder_pca_classifications(
-                predictors,
-                features,
-                predicted_labels,
-                OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_pca_classifications.png",
-                f"{animal} sequence-identity decoder classifications (2 PCs)",
-            )
+            # classifier = svm.SVC(C=1, class_weight='balanced')
+            # classifier.fit(predictors, features)
+            # predicted_labels = classifier.predict(predictors)
+            # plot_decoder_pca_classifications(
+            #     predictors,
+            #     features,
+            #     predicted_labels,
+            #     OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_sequence_identity_pca_classifications.png",
+            #     f"{animal} sequence-identity decoder classifications (2 PCs)",
+            # )
             
             accuracies_by_window[window_size].append(np.mean(decoder.accuracy))
 
         # print(accuracies_by_window)
-        # with open(f'accuracies_by_window_{animal}.json', 'w') as f:
+        # with open(f'accuracies_by_window_{animal}_500.json', 'w') as f:
         #     json.dump(accuracies_by_window, f)
