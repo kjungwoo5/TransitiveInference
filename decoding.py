@@ -94,21 +94,23 @@ def plot_decoder_pca_classifications(predictors, true_labels, predicted_labels, 
     plt.close(fig)
 
 
-def _run_decoder_task(label, predictors, features, animal, window_size, output_path, labels, save_suffix):
+def _run_decoder_task(label, predictors, features, animal, window_size, output_path, labels, save_suffix, save_fig=False):
     """Run one decoder fit and save its confusion matrix plot."""
     decoder = Decoder(predictors=predictors, features=features, model_name="svc")
     decoder.decode(
         dec_kwargs={"cv_folds": 5, "n_runs": 10},
-        parallel_flag=True,
+        parallel_flag=False,
     )
 
     accuracy = float(np.mean(decoder.accuracy))
-    decoder.plot_confusion_matrix(labels=labels)
+    
+    if save_fig == True:
+        decoder.plot_confusion_matrix(labels=labels)
 
-    save_path = output_path / "Decoding" / f"Stage5_{animal}_{save_suffix}_confusion_matrix_{window_size}.png"
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(save_path)
-    plt.close("all")
+        save_path = output_path / "Decoding" / f"Stage5_{animal}_{save_suffix}_confusion_matrix_{window_size}.png"
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
+        plt.close("all")
 
     return label, accuracy
 
