@@ -88,7 +88,7 @@ def plot_observed_vs_permutation_boxplot(results_by_animal, output_path, data_ty
     for idx, animal in enumerate(animals):
         ax.plot([1, 2], [observed_values[idx], permutation_mean_values[idx]], color="tab:orange", alpha=0.7, linewidth=1.5)
         ax.scatter(1, observed_values[idx], color="tab:red", s=50, zorder=3)
-        ax.scatter(2, permutation_mean_values[idx], color="tab:black", s=50, zorder=3)
+        ax.scatter(2, permutation_mean_values[idx], color="black", s=50, zorder=3)
         # ax.text(1.5, np.mean([observed_values[idx], permutation_mean_values[idx]]), animal,
         #         ha="center", va="bottom", fontsize=8, color="black")
 
