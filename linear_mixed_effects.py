@@ -21,6 +21,7 @@ from sklearn import svm
 import behaviour as tfb
 import data_io as tfio
 import pupillometry as tfp
+import tqdm
 from pupillometry import PupilPlotter
 
 SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_full.csv")
@@ -44,13 +45,12 @@ for animal in ['JK01', 'JK02', 'JK03', 'JK04']:
     plotter.align_pupil_by_session(filter=True)
     
     
-    window_size = 0.5
-    offset = 0.63
+    window_from_next_pip = 0.25
     
-    accuracies_by_window = {}
+    tones_by_position = []
 
-    print(f'\nwindow size: {window_size}')
-    pip_df = plotter.prep_for_decoding(window_size=window_size, tmax= offset)
+    print(f'\nwindow size: {window_from_next_pip}')
+    pip_df = plotter.prep_for_decoding(time_from_next_pip=window_from_next_pip)
     
     pip_df.dropna(inplace=True)
     
@@ -63,39 +63,41 @@ for animal in ['JK01', 'JK02', 'JK03', 'JK04']:
     pip_df['third_tone'] = pip_df['stimulus_id'].str[2]
     pip_df['fourth_tone'] = pip_df['stimulus_id'].str[3]
     
-    # Sample by minimum number of occurrences for all stimuli 
-    min_stimulus_id = pip_df['stimulus_id'].value_counts().min()
-    subsampled_stimuli = pip_df.groupby('stimulus_id').sample(min_stimulus_id)
-    subsampled_stimuli.reset_index(inplace=True)
+    for index, row in pip_df.iterrows():
+        tones_by_position.append({
+            'pupil_dilation': row['pip1'],
+            'tone': row['first_tone'],
+            'tone_position': 1,
+        })
+        tones_by_position.append({
+                    'pupil_dilation': row['pip2'],
+                    'tone': row['second_tone'],
+                    'tone_position': 2,
+                })
+        tones_by_position.append({
+                    'pupil_dilation': row['pip3'],
+                    'tone': row['third_tone'],
+                    'tone_position': 3,
+                })
+        tones_by_position.append({
+                    'pupil_dilation': row['pip4'],
+                    'tone': row['fourth_tone'],
+                    'tone_position': 4,
+                })
     
-    # Sample by minimum number of occurrences for first tones
-    min_first_tone = pip_df['first_tone'].value_counts().min()
-    subsampled_first = pip_df.groupby('first_tone').sample(min_first_tone)
-    subsampled_first.reset_index(inplace=True)
-    
-    # Sample by minimum number of occurrences for second tones
-    min_second_tone = pip_df['second_tone'].value_counts().min()
-    subsampled_second = pip_df.groupby('second_tone').sample(min_second_tone)
-    subsampled_second.reset_index(inplace=True)
-    
-    # Sample by minimum number of occurrences for third tones
-    min_third_tone = pip_df['third_tone'].value_counts().min()
-    subsampled_third = pip_df.groupby('third_tone').sample(min_third_tone)
-    subsampled_third.reset_index(inplace=True)
-    
-    # Sample by minimum number of occurrences for fourth tones
-    min_fourth_tone = pip_df['fourth_tone'].value_counts().min()
-    subsampled_fourth = pip_df.groupby('fourth_tone').sample(min_fourth_tone)
-    subsampled_fourth.reset_index(inplace=True)
-    
-    print(subsampled_first['first_tone'].value_counts())
-    print(subsampled_second['second_tone'].value_counts())
-    print(subsampled_third['third_tone'].value_counts())
-    print(subsampled_fourth['fourth_tone'].value_counts())
-    print(subsampled_stimuli['stimulus_id'].value_counts())
+    df = pd.DataFrame(tones_by_position)
+    df = df.dropna(subset=['pupil_dilation', 'tone', 'tone_position'])
+    df['animal'] = animal
 
-# 2. FIT MIXED-EFFECTS INTERACTION MODEL
-    # Formula: Distance = intercept + type + position + (type * position)
-    formula = "cosine_distance ~ C(deviant_type) * C(pattern_position)"
-    model = smf.mixedlm(formula, data=df, groups=df["session_id"])
+    print(df.head())
+
+    # 2. FIT MIXED-EFFECTS INTERACTION MODEL
+    formula = "pupil_dilation ~ C(tone) * tone_position"
+    model = smf.mixedlm(
+        formula,
+        data=df,
+        groups=df['animal'],
+        re_formula='1',
+    )
     results = model.fit()
+    print(results.summary())
