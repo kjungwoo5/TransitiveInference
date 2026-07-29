@@ -32,7 +32,7 @@ HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 
 def _run_decoder_task(label, predictors, features, animal, window_size, output_path, labels, save_suffix, save_fig=False):
-    """Run one decoder fit and save its confusion matrix plot."""
+    """Run one decoder fit without touching Matplotlib in worker threads."""
     decoder = Decoder(predictors=predictors, features=features, model_name="svc")
     decoder.decode(
         dec_kwargs={"cv_folds": 5, "n_runs": 10},
@@ -40,16 +40,7 @@ def _run_decoder_task(label, predictors, features, animal, window_size, output_p
     )
 
     accuracy = float(np.mean(decoder.accuracy))
-    
-    if save_fig == True:
-        decoder.plot_confusion_matrix(labels=labels)
-
-        save_path = output_path / "Decoding" / f"Stage5_{animal}_{save_suffix}_confusion_matrix_{window_size}.png"
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(save_path)
-        plt.close("all")
-
-    return label, accuracy
+    return label, accuracy, decoder
 
 
 if __name__ == "__main__":
@@ -64,11 +55,11 @@ if __name__ == "__main__":
     harp_filtered = tfio.filter_harp_by_successful_trials(harp_df, td_df, print_trial_lengths=False)
     
     
-    for animal in ['JK01', 'JK02','JK03', 'JK04']:
+    for animal in ['JK01', 'JK02', 'JK03', 'JK04']:
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [animal])
         plotter.align_pupil_by_session(filter=True)
         
-        window_sizes = np.linspace(0, 0.5, 11)
+        window_sizes = [0.25] # np.linspace(0, 0.5, 11)
         accuracies_by_window = {}
         
         for window_size in window_sizes:
@@ -85,6 +76,7 @@ if __name__ == "__main__":
             pip_df['second_tone'] = pip_df['stimulus_id'].str[1]
             pip_df['third_tone'] = pip_df['stimulus_id'].str[2]
             pip_df['fourth_tone'] = pip_df['stimulus_id'].str[3]
+            pip_df['remaining_sequence'] = pip_df['stimulus_id'].str[1:4]       
             
             # Sample by minimum number of occurrences for all stimuli 
             min_stimulus_id = pip_df['stimulus_id'].value_counts().min()
@@ -111,11 +103,21 @@ if __name__ == "__main__":
             subsampled_fourth = pip_df.groupby('fourth_tone').sample(min_fourth_tone)
             subsampled_fourth.reset_index(inplace=True)
             
+            subsampled_rems = {}
+            # Sample by min number of remaining sequences per starting tone
+            for index, letter in enumerate('CDEF'):
+                min_remaining_seq = pip_df[pip_df['first_tone'] == letter]['remaining_sequence'].value_counts().min()
+                subsampled_rems[letter] = pip_df[pip_df['first_tone'] == letter].groupby('remaining_sequence').sample(min_remaining_seq)
+                subsampled_rems[letter].reset_index(inplace=True)
+                
+                
             print(subsampled_first['first_tone'].value_counts())
             print(subsampled_second['second_tone'].value_counts())
             print(subsampled_third['third_tone'].value_counts())
             print(subsampled_fourth['fourth_tone'].value_counts())
             print(subsampled_stimuli['stimulus_id'].value_counts())
+            for letter in 'CDEF':
+                print(subsampled_rems[letter]['remaining_sequence'].value_counts())
             
             
             task_specs = [
@@ -169,6 +171,46 @@ if __name__ == "__main__":
                     subsampled_stimuli['stimulus_id'].unique(),
                     'sequence_identity',
                 ),
+                (
+                    'C_remaining_sequence',
+                    subsampled_rems['C'][['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                    subsampled_rems['C']['remaining_sequence'].to_numpy(),
+                    animal,
+                    window_size,
+                    OUTPUT_PATH,
+                    subsampled_rems['C']['remaining_sequence'].unique(),
+                    'C_remaining_sequence',
+                ),
+                (
+                    'D_remaining_sequence',
+                    subsampled_rems['D'][['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                    subsampled_rems['D']['remaining_sequence'].to_numpy(),
+                    animal,
+                    window_size,
+                    OUTPUT_PATH,
+                    subsampled_rems['D']['remaining_sequence'].unique(),
+                    'D_remaining_sequence',
+                ),
+                (
+                    'E_remaining_sequence',
+                    subsampled_rems['E'][['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                    subsampled_rems['E']['remaining_sequence'].to_numpy(),
+                    animal,
+                    window_size,
+                    OUTPUT_PATH,
+                    subsampled_rems['E']['remaining_sequence'].unique(),
+                    'E_remaining_sequence',
+                ),
+                (
+                    'F_remaining_sequence',
+                    subsampled_rems['F'][['pip1', 'pip2', 'pip3', 'pip4']].to_numpy(dtype=float),
+                    subsampled_rems['F']['remaining_sequence'].to_numpy(),
+                    animal,
+                    window_size,
+                    OUTPUT_PATH,
+                    subsampled_rems['F']['remaining_sequence'].unique(),
+                    'F_remaining_sequence',
+                ),
             ]
 
             n_workers = min(len(task_specs), max(1, os.cpu_count() - 1))
@@ -186,9 +228,21 @@ if __name__ == "__main__":
                 for label, predictors, features, animal, window_size, output_path, labels, save_suffix in task_specs
             )
 
-            accuracies_by_window[window_size] = [accuracy for _, accuracy in results]
-            for label, accuracy in results:
-                print(f"{label} mean accuracy: {accuracy:.4f}")
+            accuracies_by_window[window_size] = [accuracy for _, accuracy, _ in results]
+            for task_label, task_accuracy, decoder in results:
+                print(f"{task_label} mean accuracy: {task_accuracy:.4f}")
+
+                task_info = next(
+                    spec for spec in task_specs if spec[0] == task_label
+                )
+                task_labels = task_info[6]
+                task_save_suffix = task_info[7]
+
+                decoder.plot_confusion_matrix(labels=task_labels)
+                save_path = OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_{task_save_suffix}_confusion_matrix_{window_size}.png"
+                save_path.parent.mkdir(parents=True, exist_ok=True)
+                plt.savefig(save_path)
+                plt.close("all")
 
         print(accuracies_by_window)
         with open(f'accuracies_by_window_{animal}_from_next.json', 'w') as f:
