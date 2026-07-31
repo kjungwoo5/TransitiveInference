@@ -7,6 +7,9 @@ import pandas as pd
 import numpy as np
 import scipy.stats as stats
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+from copy import copy
 import os
 
 import sys
@@ -76,10 +79,10 @@ Y_LIMS = {
         ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
         'JK01_early_filtered': (-0.3, 0.3),
         'JK01_late_filtered': (-0.3, 0.3),
-        'JK01_filtered': (-0.15, 0.2),
-        'JK02_filtered': (-0.4, 0.5),
-        'JK03_filtered': (-0.4, 0.6),
-        'JK04_filtered': (-0.5, 0.5),
+        'JK01_filtered': (-0.15, 0.3),
+        'JK02_filtered': (-0.4, 0.6),
+        'JK03_filtered': (-0.4, 0.8),
+        'JK04_filtered': (-0.5, 0.8),
     },
     5: {
         'JK01': (-0.25,0.35),
@@ -103,22 +106,12 @@ PERMS_Y_LIMS = {
     'JK04_filtered': (-0.4, 0.3),
 }
 
-STAGE1_FREQUENCIES = {
-    'A': '5275', 
-    'B': '5920', 
-    'C': '6646', 
-    'D': '7459', 
-    'E': '8373', 
-    'F': '9398', 
-    'G': '10550', 
-    'H': '11841', 
-    'I': '13292', 
-    'J': '14919',
-}
-
 
 
 class PupilPlotter:
+    from stage_specific_funcs import plot_pitch_dependency, plot_difference, plot_cosine_similarity, prep_for_decoding, plot_stage5_perms
+    
+    
     def __init__(self, pupil_df: pd.DataFrame, harp_df: pd.DataFrame, stage: int, type_of_analysis: str, output_path: Path, animals: list):
         valid_types_of_analysis = {'testing', 'exposure', 'first', 'second'}
         if type_of_analysis not in valid_types_of_analysis:
@@ -173,6 +166,7 @@ class PupilPlotter:
                 harp = harp[harp['Outcome'] == 1]
                 if '_filtered' not in ''.join(self.animals):
                     self.animals = [a + '_filtered' for a in self.animals]
+                Xs = harp.index[harp['Payload'] == 3].tolist()
             if self.stage == 1:
                 types_of_stimuli = ['X', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
                 As = harp.index[harp['Payload'] == 8].tolist()
@@ -401,7 +395,8 @@ class PupilPlotter:
                 
             for event_id, event_times in event_times_by_event.items():
                 if self.stage == 1:
-                    epochs = [pupil.loc[t -0.5 :t + 2] for t in event_times]
+                    # epochs = [pupil.loc[t -0.5 :t + 2] for t in event_times]
+                    epochs = [pupil.loc[t + READING_WINDOW[0]:t + READING_WINDOW[1]] for t in event_times]
                 else:
                     epochs = [pupil.loc[t + READING_WINDOW[0]:t + READING_WINDOW[1]] for t in event_times]
                 if epochs == []:
@@ -412,7 +407,8 @@ class PupilPlotter:
                 aligned_pupil[event_id] = epochs_array[-300:]
 
             if self.stage == 1:
-                x_ser = np.round(np.linspace(-0.5, 2, aligned_pupil['X'].shape[1]), 2)
+                # x_ser = np.round(np.linspace(-0.5, 2, aligned_pupil['X'].shape[1]), 2)
+                x_ser = np.round(np.linspace(READING_WINDOW[0], READING_WINDOW[1], aligned_pupil['X'].shape[1]), 2)
             else:
                 x_ser = np.round(np.linspace(READING_WINDOW[0], READING_WINDOW[1], aligned_pupil['X'].shape[1]), 2)
 
@@ -444,49 +440,6 @@ class PupilPlotter:
             fig.clf()
             plt.close()
             
-
-    def plot_pupil_by_session(self, save_figure = True, show_plot = True):
-        valid_types_of_analysis = {'testing', 'exposure', 'first', 'second'}
-        if self.type_of_analysis not in valid_types_of_analysis:
-            raise Exception('Not a valid type of analysis! (\'testing\', \'exposure\', \'first\', \'second\')')
-
-        for session, value in self.aligned_pupil_by_session.items():
-            plt.pause(0.1)
-            pupil_plot = plt.subplots()
-            print('Plotting pupil plot for session: ', session)
-
-            total_responses = {}
-            for stimulus in self.types_of_stimuli:
-                aggregate = []
-                for key, value in self.aligned_pupil_by_session[session].items():
-                    if stimulus == key:
-                        aggregate.append(self.aligned_pupil_by_session[session][stimulus])
-                if aggregate:
-                    total_responses[stimulus] = pd.concat(aggregate, axis=0, ignore_index=True)
-                    total_responses[stimulus] = total_responses[stimulus].tail(300)
-
-            for event_id, response in total_responses.items():
-                pupil_plot[1].plot(response.columns, response.mean(axis=0), label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
-                plot_shaded_error_ts(pupil_plot[1], response.columns, response.mean(axis=0),
-                                    response.sem(axis=0), alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
-            pupil_plot[1].legend()
-            pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
-            annotation = f'n = {total_responses["X"].shape[0]} trials'
-            pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-            pupil_plot[1].axvspan(0, 0.15, color='grey' , alpha=0.1)
-            pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
-            pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
-            pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-            #pupil_plot[1].set_ylim((-0.5,0.9))
-            pupil_plot[0].suptitle(f'Nonbaselined plot for: {session}')
-            fig = plt.gcf()
-            if show_plot:
-                pupil_plot[0].show()
-            if save_figure:
-                os.makedirs(fr'{self.output_path}\{self.output_subdir}\Individual Sessions', exist_ok=True)
-                fig.savefig(
-                    fr'{self.output_path}\{self.output_subdir}\Individual Sessions\Stage{self.stage}_{session}_nonbaselined.png')
-            fig.clf()
 
     def plot_baseline_sub_aligned_pupil_by_session(self, save_figure = True, show_plot = True):
         
@@ -552,6 +505,8 @@ class PupilPlotter:
             print('Plotting distribution for session: ', session)
             actual_distribution = {}
             for stimulus in self.types_of_stimuli:
+                if self.stage == 5 and stimulus == 'X':
+                    continue
                 if stimulus in total_responses.keys():
                     actual_distribution[stimulus] = len(total_responses[stimulus])
                 else:
@@ -568,11 +523,11 @@ class PupilPlotter:
             if save_figure:
                 os.makedirs(fr'{self.output_path}\{self.output_subdir}\Actual Distributions', exist_ok=True)
                 fig.savefig(
-                    fr'{self.output_path}\{self.output_subdir}\Actual Distributions\Stage{self.stage}_{session}_distribution.png'
+                    fr'{self.output_path}\{self.output_subdir}\Actual Distributions\By Session\Stage{self.stage}_{session}_distribution.png'
                 )
             fig.clf()
 
-    def aggregate_total(self, baseline_data = False) -> dict:
+    def aggregate_total(self, baseline_data = False, store_session = False) -> dict:
         total_responses = {}
         for stimulus in self.types_of_stimuli:
             aggregate = []
@@ -583,7 +538,7 @@ class PupilPlotter:
         if baseline_data: 
             for event_id, response in total_responses.items():
                 if self.stage == 1:
-                    baseline_mean = response.loc[:, -0.2:0.2].mean(axis=1)
+                    baseline_mean = response.loc[:, -0.10:0.10].mean(axis=1)
                 else:
                     baseline_mean = response.loc[:, -0.2:0.2].mean(axis=1)
                 total_responses[event_id] = response.sub(baseline_mean, axis=0)
@@ -620,7 +575,7 @@ class PupilPlotter:
         aggregated_aligned_pupil = self.aggregate_total()
         pupil_plot = plt.subplots()
         for event_id, response in aggregated_aligned_pupil.items():
-            baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
+            baseline_mean = response.loc[:, -1:0].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
             if not use_median:
                 pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
@@ -733,48 +688,6 @@ class PupilPlotter:
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_Testing.png')
         fig.clf()
         
-    def plot_stage5_perms(self, save_figure = True, show_plot = True):
-        animals_to_list = ', '.join(self.animals)
-
-        aggregated_aligned_pupil = self.aggregate_total()
-        
-        # Plot overall
-        self.plot_overall_baseline_sub_aligned_pupil(save_figure=save_figure, show_plot=show_plot)
-        
-        # Plot by start letter
-        for start_letter in 'CDEFA':
-            pupil_plot = plt.subplots()
-            n_stimuli = 0
-            for event_id, response in aggregated_aligned_pupil.items():
-                if event_id == 'X':
-                    continue
-                if (start_letter != 'A') and (event_id[0] != start_letter):
-                    continue
-                elif (start_letter == 'A') and ((event_id[0] != start_letter) and (event_id[0] != 'G')): 
-                    continue
-                n_stimuli += len(response.index)
-                baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
-                baselined = response.sub(baseline_mean, axis=0)
-                pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
-                plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
-            pupil_plot[1].legend()
-            pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
-            annotation = f'n = {n_stimuli} stimuli'
-            pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-            pupil_plot[1].set_ylim(PERMS_Y_LIMS.get(animals_to_list, (-0.5,0.5)))
-            pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
-            pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
-            pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
-            pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-            pupil_plot[0].suptitle(f'Baseline subtracted plot for {animals_to_list}')
-            fig = plt.gcf()
-            if show_plot:
-                pupil_plot[0].show()
-            if save_figure:
-                os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
-                fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{start_letter}Sequences_{animals_to_list}_Baseline_Subtracted.png')
-            fig.clf()
-            
         
 
     def plot_overall_distribution(self, save_figure = True, show_plot = True):
@@ -805,242 +718,272 @@ class PupilPlotter:
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\Actual Distributions\Stage{self.stage}_{animals_to_list}_distribution.png')
         fig.clf()
     
-    def prep_for_decoding(self, window_size = 0.1, tmax = 0.64, time_from_next_pip = None):
-        pip_dilations = []
-        aggregated_aligned_pupil = self.aggregate_total()
         
-        # Correct each individual trial such that baseline is around 0 at 0s
-        for event_id, response in aggregated_aligned_pupil.items():
-            pip_dilation = []
-            for index, row in response.iterrows():
-                baseline_mean = row.loc[-0.25:0.25].mean()
-                row = row.sub(baseline_mean)
-                
-                if time_from_next_pip == None: 
-                    # Get mean pupil dilation from windows of 100ms centred around 
-                    # tmax (640ms), tmax + 500ms, tmax + 1000ms, and tmax + 1500ms respectively
-                    a = row.loc[tmax-window_size/2 : tmax+window_size/2].mean()
-                    b = row.loc[tmax+0.5-window_size/2 : tmax+0.5+window_size/2].mean()
-                    c = row.loc[tmax+1.0-window_size/2 : tmax+1.0+window_size/2].mean()
-                    d = row.loc[tmax+1.5-window_size/2 : tmax+1.5+window_size/2].mean()
-                else: 
-                    # Get mean pupil dilation from times going back from next pip time
-                    # 0.5-window, 1.0-window, 1.5-window, 2.0-window respectively
-                    a = row.loc[0.5-time_from_next_pip : 0.5].mean()
-                    b = row.loc[1.0-time_from_next_pip : 1.0].mean()
-                    c = row.loc[1.5-time_from_next_pip : 1.5].mean()
-                    d = row.loc[2.0-time_from_next_pip : 2.0].mean()
-                pip_dilation.append([a,b,c,d, event_id])
-            pip_dilations.extend(pip_dilation)
-        # Convert pip_dilations into a df with columns of pip1, pip2, pip3, pip4, with label of event_id
-        pip_df = pd.DataFrame(pip_dilations, columns=['pip1', 'pip2', 'pip3', 'pip4', 'stimulus_id'])
-        return pip_df
+    def fit_time_resolved_baseline_regression(self, df:pd.DataFrame, base_window=(-1.0, 0.0)):
+        """
+        Fits a mass-univariate linear regression model for each time point across all trials
+        to assess how baseline temporal features predict the subsequent pupil response.
 
-    def plot_pitch_dependency(self, offset = 0.64, window_size = 0.1, save_figure = True, show_plot = True, omit_outliers = True, show_means_as_points = True):
-        animal = [animal.split('_')[0] for animal in self.animals]
-        animals_to_list = ', '.join(animal)
+        Parameters:
+        -----------
+        df : pd.DataFrame
+            DataFrame where rows are trials and columns are time points.
+        base_window : tuple
+            The (start, end) time for the baseline period.
 
-        aggregated_aligned_pupil = self.aggregate_total()
-        fig, ax = plt.subplots()
-        plot_data = []
-        labels = []
+        Returns:
+        --------
+        coef_df : pd.DataFrame
+            Regression coefficients for the full model.
+        total_r2 : pd.Series
+            R^2 of the full model (all features combined) over time.
+        feature_r2_df : pd.DataFrame
+            Univariate R^2 for each feature independently over time.
+        """
+        # 1. Feature Engineering
+        base_df = df.loc[:, base_window[0]:base_window[1]]
+        t_base = base_df.columns.values
 
-        def _filter_outliers(values):
-            values = np.asarray(values, dtype=float)
-            values = values[~np.isnan(values)]
-            if values.size < 4:
-                return values
+        # Feature 1: Mean
+        base_mean = base_df.mean(axis=1)
+        # Feature 2: Slope (Gradient)
+        x = t_base - np.mean(t_base)
+        base_slope = base_df.sub(base_mean, axis=0).dot(x) / np.sum(x**2)
+        # Feature 3: Immediate (Last 200ms)
+        imm_start = max(base_window[0], base_window[1] - 0.2)
+        base_imm = df.loc[:, imm_start:base_window[1]].mean(axis=1)
+        # Feature 4: Volatility (Variance)
+        base_var = base_df.var(axis=1)
 
-            q1, q3 = np.percentile(values, [25, 75])
-            iqr = q3 - q1
-            lower = q1 - 1.5 * iqr
-            upper = q3 + 1.5 * iqr
-            return values[(values >= lower) & (values <= upper)]
+        X = pd.DataFrame({
+            'mean': base_mean,
+            'slope': base_slope,
+            'immediate': base_imm,
+            'volatility': base_var
+        })
 
-        for event_id, response in aggregated_aligned_pupil.items():
-            if event_id == 'X':
-                continue
-            baseline_mean = response.loc[:, -0.25:0.25].mean(axis=1)
-            baselined = response.sub(baseline_mean, axis=0)
-            window_slice = baselined.loc[:, round(offset - window_size / 2, 2):round(offset + window_size / 2, 2)]
-            window_means = window_slice.mean(axis=1)
-            filtered_values = _filter_outliers(window_means) if omit_outliers else window_means.to_numpy()
-            if filtered_values.size > 0:
-                plot_data.append(filtered_values)
-                labels.append(event_id)
+        # 2. Cleanup
+        valid_mask = X.notna().all(axis=1) & df.notna().all(axis=1)
+        X_clean = X[valid_mask]
+        Y_clean = df[valid_mask]
 
-        if not plot_data:
-            return
+        # 3. Full Model R2 and Coefficients
+        full_model = LinearRegression()
+        full_model.fit(X_clean, Y_clean)
 
-        if show_means_as_points:
-            means = [np.mean(values) for values in plot_data]
-            for label, mean in zip(labels, means):
-                ax.scatter(label, mean, color='black', s=40)
-                # ax.text(label, mean + 0.01, f'{mean:.2f}', ha='center', va='bottom', fontsize=8)
-        else:
-            box = ax.boxplot(
-                plot_data,
-                labels=labels,
-                patch_artist=True,
-                widths=0.5,
-                showfliers=False,
-            )
-            for patch, event_id in zip(box['boxes'], labels):
-                patch.set_facecolor(STIMULUS_COLOURS.get(event_id, 'lightgray'))
-                patch.set_alpha(0.6)
+        coef_df = pd.DataFrame(full_model.coef_, index=df.columns, columns=X_clean.columns)
 
-        ax.set_xlabel('Stimulus Frequency (Hz)')
-        ax.set_xticklabels(STAGE1_FREQUENCIES.values())
-        ax.set_ylabel('Pupil dilation')
-        ax.margins(y=0.05)
-        ax.set_title(f'Pitch dependency for {animals_to_list} \n')
-        annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
-        ax.annotate(annotation, xy=(0.3, 1.02), xycoords=ax.get_xaxis_transform())
-        fig = plt.gcf()
-        
-        if show_plot:
-            fig.show()
-        if save_figure:
-            os.makedirs(fr'{self.output_path}\Pitch Dependency', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\Pitch Dependency\Stage{self.stage}_{animals_to_list}_Pitch_Dependency_{offset}.png')
-        fig.clf()
-        
-    def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by_session = True, show_plot = True, save_figure = True):
-        animals_to_list = ', '.join(self.animals)
-        
-        pupil_plot = plt.subplots()
-        
-        # TODO: Within session shuffle, obtain box plot of data and shuffle, and conduct paired(?) t-test
-        
-        if by_session: 
-            observed_differences = []
-            shuffled_differences = []
-            for session in self.pupil_df['session_id'].unique():
-                if len(self.aligned_pupil_by_session[session].keys()) < 5:
-                    continue
-                baseline_dev = self.aligned_pupil_by_session[session][deviant_stim].loc[:, -0.25:0.25].mean(axis=1)
-                baseline_norm = self.aligned_pupil_by_session[session][normal_stim].loc[:, -0.25:0.25].mean(axis=1)
-                baselined_dev = self.aligned_pupil_by_session[session][deviant_stim].sub(baseline_dev, axis=0)
-                baselined_norm = self.aligned_pupil_by_session[session][normal_stim].sub(baseline_norm, axis=0)
-                
-                # dev_norm_size = baselined_dev.shape[0] - baselined_norm.shape[0]
-                # if dev_norm_size > 0:
-                #     baselined_dev.sample(baselined_dev.shape[0] - dev_norm_size)
-                # else: 
-                #     baselined_norm.sample(baselined_dev.shape[0])
-                
-                dev_pupil = pd.DataFrame(baselined_dev.loc[:, window[0]:window[1]].mean(axis=1))
-                dev_pupil['id'] = deviant_stim
-                
-                norm_pupil = pd.DataFrame(baselined_norm.loc[:, window[0]:window[1]].mean(axis=1))
-                norm_pupil['id'] = normal_stim
+        total_r2 = r2_score(Y_clean, full_model.predict(X_clean), multioutput='raw_values')
+        total_r2_ser = pd.Series(total_r2, index=df.columns, name='Total_R2')
 
-                pupils = pd.concat([dev_pupil, norm_pupil], axis = 0).reset_index()
-                shuffled_pupils = pupils.copy()
-                
-                rng = np.random.default_rng(3)
-                shuffled_pupils['id'] = rng.permutation(shuffled_pupils['id'])
-                
-                observed_difference = pupils.groupby(['id'])[0].mean()[deviant_stim] - \
-                                    pupils.groupby(['id'])[0].mean()[normal_stim]
-                
-                shuffled_difference = shuffled_pupils.groupby(['id'])[0].mean()[deviant_stim] - \
-                                    shuffled_pupils.groupby(['id'])[0].mean()[normal_stim]
-                
-                observed_differences.append(observed_difference)
-                shuffled_differences.append(shuffled_difference)
-                
-                
-            
-            data = [observed_differences, shuffled_differences]
-            
-            # n: 9, 9, 11, 9
-            
-            
-            wilcoxon = stats.wilcoxon(data[0], data[1], alternative='greater')
-            
-            
-            box = pupil_plot[1].boxplot(data, labels=["Data", "Shuffle"], patch_artist=True)
-            for patch in box["boxes"]:
-                patch.set(facecolor="lightgray", alpha=0.8)
-            
-            pupil_plot[0].suptitle(f'{animals_to_list} difference in pupil dilation for deviant')
-            pupil_plot[0].text(
-                    0.98,
-                    0.95,
-                    f"p = {wilcoxon.pvalue:.3f}",
-                    transform=plt.gca().transAxes,
-                    ha="right",
-                    va="top",
-                    fontsize=10,
-                    bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
-                )
-            
-            
-            fig = plt.gcf()
-            fig.savefig(fr'{self.output_path}\Differences\Stage{self.stage}_{animals_to_list}_Differences.png')
-            fig.clf()
-                    
+        # 4. Calculate Unique Contributions (Semi-partial R2)
+        univariate_r2_results = {}
+
+        for feature in X_clean.columns:
+            # Fit a model with ONLY this one feature
+            uni_model = LinearRegression().fit(X_clean[[feature]], Y_clean)
+
+            # Calculate R2 for this single feature
+            uni_r2 = r2_score(Y_clean, uni_model.predict(X_clean[[feature]]), multioutput='raw_values')
+            univariate_r2_results[feature] = uni_r2
+
+        feature_r2_df = pd.DataFrame(univariate_r2_results, index=df.columns)
+
+        return coef_df, total_r2_ser, feature_r2_df
+
+
+    def regress_out_baseline(self, df, coef_df, base_window=(-1.0, 0.0),intercept=None):
+        """
+        Subtracts predicted baseline effects from pupil data using an arbitrary set of
+        coefficients.
+
+        Parameters:
+        -----------
+        df : pd.DataFrame
+            The original trial-by-time DataFrame.
+        coef_df : pd.DataFrame
+            Regression coefficients (columns = feature names, index = time points).
+        base_window : tuple
+            The window used to calculate baseline features.
+        intercept : pd.Series, optional
+            The intercept (bias) of the model for each time point.
+
+        Returns:
+        --------
+        regressed_df : pd.DataFrame
+            The pupil data with the predicted baseline component removed.
+        """
+        base_df = df.loc[:, base_window[0]:base_window[1]]
+        t_base = base_df.columns.values
+
+        # Dictionary to store calculated features
+        feature_map = {}
+
+        # Dynamically calculate only the features present in coef_df
+        if 'mean' in coef_df.columns:
+            feature_map['mean'] = base_df.mean(axis=1)
+
+        if 'slope' in coef_df.columns:
+            x_centered = t_base - np.mean(t_base)
+            feature_map['slope'] = base_df.sub(base_df.mean(axis=1), axis=0).dot(x_centered) / np.sum(x_centered**2)
+
+        if 'immediate' in coef_df.columns:
+            imm_start = max(base_window[0], base_window[1] - 0.2)
+            feature_map['immediate'] = df.loc[:, imm_start:base_window[1]].mean(axis=1)
+
+        if 'volatility' in coef_df.columns:
+            feature_map['volatility'] = base_df.var(axis=1)
+
+        if 'range' in coef_df.columns:
+            feature_map['range'] = base_df.max(axis=1) - base_df.min(axis=1)
+
+        # Construct X matrix using only the features found in coef_df
+        X = pd.DataFrame({k: feature_map[k] for k in coef_df.columns if k in feature_map})
+
+        # Calculate the prediction: (Trials x Features) dot (Features x Time)
+        # Ensure columns of X match columns of coef_df exactly
+        X = X[coef_df.columns]
+        predicted_pupil = X.dot(coef_df.T)
+
+        # Subtract the prediction
+        regressed_df = df - predicted_pupil
+
+        # Subtract intercept if provided (centers the data around 0)
+        if intercept is not None:
+            regressed_df = regressed_df.sub(intercept, axis=1)
+
+        return regressed_df
     
-    def plot_cosine_similarity(self, stim1id: str, stim2id: str, window: tuple, show_plot = True, save_figure = True):
+    def build_session_wide_baseline_dataframe(self, aligned_pupil_by_session: dict, include_events=None, smooth_window: int = 9):
+        # Aggregate aligned session responses into one trial-by-time DataFrame.
+        if include_events is None:
+            include_events = self.types_of_stimuli
+
+        all_responses = []
+        for session, event_dict in aligned_pupil_by_session.items():
+            for event_id, response in event_dict.items():
+                if event_id in include_events:
+                    all_responses.append(response)
+
+        if not all_responses:
+            raise ValueError('No session responses found for the requested events.')
+
+        combined = pd.concat(all_responses, axis=0, ignore_index=True)
+        if smooth_window is not None and smooth_window > 1:
+            combined = combined.T.rolling(window=smooth_window, min_periods=1, center=True).mean().T
+        return combined
+
+
+    def fit_time_resolved_baseline_regression_across_sessions(self, aligned_pupil_by_session: dict,base_window=(-1.0, 0.0),include_events=None,smooth_window: int = 9):
+        df_for_regr = self.build_session_wide_baseline_dataframe(
+            aligned_pupil_by_session,
+            include_events=include_events,
+            smooth_window=smooth_window
+        )
+        return self.fit_time_resolved_baseline_regression(df_for_regr, base_window=base_window)
+
+
+    def regress_out_baseline_across_sessions(self, aligned_pupil_by_session: dict,
+                                            coef_df: pd.DataFrame,
+                                            base_window=(-1.0, 0.0),
+                                            intercept=None,
+                                            events_to_regress=None):
+        """Apply baseline regression coefficients to each session's aligned pupil responses."""
+        baselined_sessions = {}
+        for session, event_dict in aligned_pupil_by_session.items():
+            baselined_sessions[session] = {}
+            for event_id, response in event_dict.items():
+                if events_to_regress is None or event_id in events_to_regress:
+                    baselined_sessions[session][event_id] = self.regress_out_baseline(
+                        copy(response), coef_df,
+                        base_window=base_window,
+                        intercept=intercept
+                    )
+                else:
+                    baselined_sessions[session][event_id] = response.copy()
+        return baselined_sessions
+
+        
+    def plot_overall_baseline_regressed_pupil(self, save_figure = True, show_plot = True, use_median = False):
+        # Start using baseline regression
         
         animals_to_list = ', '.join(self.animals)
-        pupil_plot = plt.subplots()
-        print(f'Cosine similarities for {self.animals}')
-        cosine_similarities = []
-        sessions = []
-        for session in self.pupil_df['session_id'].unique():
-            if len(self.aligned_pupil_by_session[session].keys()) < 5:
-                continue
-            sessions.append(session)
-            baseline_1 = self.aligned_pupil_by_session[session][stim1id].loc[:, -0.25:0.25].mean(axis=1)
-            baseline_2 = self.aligned_pupil_by_session[session][stim2id].loc[:, -0.25:0.25].mean(axis=1)
-            baselined_1 = self.aligned_pupil_by_session[session][stim1id].sub(baseline_1, axis=0)
-            baselined_2 = self.aligned_pupil_by_session[session][stim2id].sub(baseline_2, axis=0)
-            
-            stim1 = baselined_1.loc[:, window[0]:window[1]].mean(axis=0)
-            
-            stim2 = baselined_2.loc[:, window[0]:window[1]].mean(axis=0)
+        
+        baseline_window = (-1,0)
+        df_for_regr = self.build_session_wide_baseline_dataframe(
+            self.aligned_pupil_by_session,
+            include_events=[event_id for event_id in self.types_of_stimuli if event_id != 'X'],
+            smooth_window=9
+        )
+        coefs, r2, r2_by_feature = self.fit_time_resolved_baseline_regression(df_for_regr, base_window=baseline_window)
 
-            cosine_similarity = np.dot(stim1, stim2) / (norm(stim1) * norm(stim2))
-            print(f'Cosine similarity for {stim1id} and {stim2id} is {cosine_similarity}.')
-            cosine_similarities.append(cosine_similarity)
-            
-        # pupil_plot[1].scatter(sessions, cosine_similarities)
-        session_numbers = np.arange(1, len(sessions) + 1)
-        coef = np.polyfit(session_numbers, cosine_similarities, 1)
-        poly1d_fn = np.poly1d(coef)
-        pupil_plot[1].scatter(session_numbers, cosine_similarities)
-        
-        model = LinearRegression()
-        model.fit(session_numbers.reshape(-1,1), cosine_similarities)
-        
-        r2 = model.score(session_numbers.reshape(-1,1), cosine_similarities)
-        coefs = model.coef_
-        intercept = model.intercept_
-        
-        r_squared = r'$R^2 = $' + str(round(r2,2))
-        
-        pupil_plot[1].plot(session_numbers, poly1d_fn(session_numbers), '--r', label = r_squared)
-        
-        # box = pupil_plot[1].boxplot(data, labels=["Data", "Shuffle"], patch_artist=True)
-        # for patch in box["boxes"]:
-        #     patch.set(facecolor="lightgray", alpha=0.8)
-        
-        pupil_plot[0].suptitle(f'{animals_to_list} cosine similarities in pupil dilation for training stimuli')
-        # pupil_plot[0].text(
-        #         0.98,
-        #         0.95,
-        #         f"p = {wilcoxon.pvalue:.3f}",
-        #         transform=plt.gca().transAxes,
-        #         ha="right",
-        #         va="top",
-        #         fontsize=10,
-        #         bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
-        #     )
-        pupil_plot[1].legend()
-            
-        
+        # To plot how the influence of baseline mean changes over time:
+        plt.pause(0.1)
+        base_eff_plot= plt.subplots()
+        for coef_name in coefs:
+            print(coef_name)
+            base_eff_plot[1].plot(coefs.index, coefs[coef_name], label=f'Baseline {coef_name} Effect')
+        base_eff_plot[1].axvline(0, color='k', linestyle='--')
+        base_eff_plot[1].legend()
+        base_eff_plot[0].suptitle(f'Baselined effects plot for {animals_to_list}')
         fig = plt.gcf()
-        fig.savefig(fr'{self.output_path}\Similarities\Stage{self.stage}_{animals_to_list}_Similarities.png')
+        base_eff_plot[0].show()
+        fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Coeff_Contribution.png')
+
+        # Plot R2
+        plt.pause(0.1)
+        base_r2_plot= plt.subplots()
+        base_r2_plot[1].plot(r2,label='Total R2')
+        for coef_name in r2_by_feature:
+            base_r2_plot[1].plot(r2_by_feature[coef_name], label=f'R2 {coef_name}')
+        base_r2_plot[1].axvline(0, color='k', linestyle='--')
+        base_r2_plot[1].legend()
+        base_r2_plot[0].suptitle(f'Baselined R2 plot for {animals_to_list}')
+        fig = plt.gcf()
+        base_r2_plot[0].show()
+        fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Coeff_R2.png')
+
+        # Apply the session-wide baseline regression back to every session.
+        baselined_sessions = self.regress_out_baseline_across_sessions(
+            self.aligned_pupil_by_session,
+            coefs[['immediate','slope','mean']],
+            base_window=baseline_window,
+            events_to_regress=[event_id for event_id in self.types_of_stimuli if event_id != 'X']
+        )
+        
+        total_responses = {}
+        for stimulus in self.types_of_stimuli:
+            aggregate = []
+            for key, value in baselined_sessions.items():
+                if stimulus in baselined_sessions[key]:
+                    aggregate.append(baselined_sessions[key][stimulus])
+            total_responses[stimulus] = pd.concat(aggregate, axis=0, ignore_index=True)
+        
+        aggregated_baselined = total_responses
+
+        # plot all
+        pupil_plot = plt.subplots()
+        for event_id, response in aggregated_baselined.items():
+            baseline_mean = response.loc[:, -1:0].mean(axis=1)
+            baselined = response.sub(baseline_mean, axis=0)
+            pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0), label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+            plot_shaded_error_ts(pupil_plot[1], baselined.columns, baselined.mean(axis=0),
+                                baselined.sem(axis=0), alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+        pupil_plot[1].legend()
+        pupil_plot[1].set_xlim((-1,4))
+        annotation = f'n = {aggregated_baselined["X"].shape[0]} trials'
+        pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+        pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
+        pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
+        pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
+        pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
+        #pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
+        #pupil_plot[0].suptitle(f'Baseline Regressed plot for {animals_to_list}')
+        pupil_plot[0].suptitle(f'Baseline Regressed plot for {animals_to_list}')
+        fig = plt.gcf()
+        if show_plot:
+            pupil_plot[0].show()
+        if save_figure:
+            fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Baseline_Regressed.png')
+        plt.pause(0.1)
         fig.clf()

@@ -11,7 +11,7 @@ import data_io as tfio
 import pupillometry as tfp
 from pupillometry import PupilPlotter
 
-SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_full.csv")
+SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_cleaned.csv")
 HOME_PATH = Path(r"C:\bonsai\data\JungWoo")
 OUTPUT_PATH = Path(r"C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\Outputs")
 PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
@@ -21,87 +21,96 @@ HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 if __name__ == "__main__":
     
-    STAGE = 5
+    ############## STAGE 1 ###################
     
-    pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, STAGE, PARQUET_DIR)
-    harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, STAGE, HARP_DIR)
+    stage = 1
+    
+    pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, stage, PARQUET_DIR)
+    harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, stage, HARP_DIR)
     td_df = tfio.load_aggregate_trial_data(SESSION_PATH, HOME_PATH)
     
     harp_filtered = tfio.filter_harp_by_successful_trials(harp_df, td_df, print_trial_lengths=False)
     
-    STAGE = 1
-    ############## STAGE 1 ###################
-    for a in range(1,5):
-        plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
-        plotter.align_pupil_by_session(filter=True)
-        plotter.plot_overall_distribution(show_plot=False)
-        plotter.plot_sessionwide_pupil_dilation(show_plot=False)
-    #     plotter.plot_pitch_dependency(offset = 0.5)
-    # plotter.plot_overall_distribution(show_plot=False)
-    # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
-    # plotter.plot_stage5_perms(show_plot=False)
-    # plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
+    # plotter = PupilPlotter(pupil_df, harp_filtered, stage, 'testing', OUTPUT_PATH, ['JK02'])
     # plotter.align_pupil_by_session(filter=True)
-    # plotter.plot_pitch_dependency(offset = 0.5)
-     
-     
-    STAGE = 5
-    ############## STAGE 5 ###################
+    # plotter.plot_overall_baseline_sub_aligned_pupil()
+    
     for a in range(1,5):
-        plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
+        plotter = PupilPlotter(pupil_df, harp_filtered, stage, 'testing', OUTPUT_PATH, [f'JK0{a}'])
         plotter.align_pupil_by_session(filter=True)
-        plotter.plot_overall_distribution(show_plot=False)
-        plotter.plot_sessionwide_pupil_dilation(show_plot=False)
-        # plotter.plot_pitch_dependency(offset = 0.5)
+        # plotter.plot_distribution_by_session(show_plot=False)
         # plotter.plot_overall_distribution(show_plot=False)
-        # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
-        # plotter.plot_stage5_perms(show_plot=False)
+        plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+        # plotter.plot_sessionwide_pupil_dilation(show_plot=False)
+        plotter.plot_pitch_dependency(show_plot=False)
+    
+    plotter = PupilPlotter(pupil_df, harp_filtered, stage, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
+    plotter.align_pupil_by_session(filter=True)
+    plotter.plot_overall_distribution(show_plot=False)
+    plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+    plotter.plot_pitch_dependency(offset = 0.5)
     
     
-    STAGE = 4
+    
     ################ STAGE 4 ################
         
-    for a in range(1,5):
-        plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
-        plotter.align_pupil_by_session(filter=True)
-        plotter.plot_overall_distribution(show_plot=False)
-        plotter.plot_sessionwide_pupil_dilation(show_plot=False)
-        # plotter.plot_difference('CDEF', 'CFED', (0.5,2.50))
-        # plotter.plot_cosine_similarity('ABCD', 'EFGH', (0, 2.5))
-        # plotter.plot_overall_distribution(show_plot=False)
-        # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+    # stage = 4
+    
+    # pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, stage, PARQUET_DIR)
+    # harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, stage, HARP_DIR)
+    # td_df = tfio.load_aggregate_trial_data(SESSION_PATH, HOME_PATH)
+    
+    # harp_filtered = tfio.filter_harp_by_successful_trials(harp_df, td_df, print_trial_lengths=False)
         
-    r'''for a in range(1,5):
-        plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
-        plotter.set_early_sessions()
-        plotter.align_pupil_by_session(filter=True)
-        plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
-        plotter.plot_baseline_sub_training(show_plot=False)
-        plotter.plot_baseline_sub_testing(show_plot=False)
+    # for a in range(1,5):
+    #     plotter = PupilPlotter(pupil_df, harp_filtered, stage, 'testing', OUTPUT_PATH, [f'JK0{a}'])
+    #     plotter.align_pupil_by_session(filter=True)
+    #     # plotter.plot_distribution_by_session(show_plot=False)
+    #     # plotter.plot_overall_distribution(show_plot=False)
+    #     # plotter.plot_sessionwide_pupil_dilation(show_plot=False)
+    #     plotter.plot_difference('CDEF', 'CFED', (0.5,3), regress_baseline=False)
+    #     # plotter.plot_cosine_similarity('ABCD', 'EFGH', (0, 2.5))
+    #     # plotter.plot_overall_distribution(show_plot=False)
+    #     plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+    #     # plotter.plot_overall_baseline_regressed_pupil(show_plot= False)
     
-    for a in range(1,5):
-        plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
-        plotter.set_late_sessions()
-        plotter.align_pupil_by_session(filter=True)
-        plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
-        plotter.plot_baseline_sub_training(show_plot=False)
-        plotter.plot_baseline_sub_testing(show_plot=False)'''
+    # plotter = PupilPlotter(pupil_df, harp_filtered, stage, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
+    # plotter.align_pupil_by_session(filter=True)
+    # plotter.plot_overall_distribution(show_plot=False)
+    # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+    # plotter.plot_overall_baseline_regressed_pupil(show_plot= False)
     
     
-
-    r'''stage4 = PupilPlotter(pupil_df, harp_df, STAGE, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
     
-    stage4.align_pupil_by_session()
-    stage4.plot_baseline_sub_aligned_pupil_by_session(show_plot = False)
-    stage4.plot_sessionwide_pupil_dilation(show_plot = False)'''
+    ############## STAGE 5 ###################
+        
+    # stage = 5
     
-    r'''stage4_JK04 = PupilPlotter(pupil_df, harp_df, STAGE, 'testing', OUTPUT_PATH, ['JK04'])
-    stage4_JK04.align_pupil_by_session()
-    stage4_JK04.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
-    for a in range(1,5):
-        plotter = PupilPlotter(pupil_df, harp_df, STAGE, 'testing', OUTPUT_PATH, [f'JK0{a}'])
-        plotter.align_pupil_by_session()
-        plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False, use_median=True)'''
+    # pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, stage, PARQUET_DIR)
+    # harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, stage, HARP_DIR)
+    # td_df = tfio.load_aggregate_trial_data(SESSION_PATH, HOME_PATH)
+    
+    # harp_filtered = tfio.filter_harp_by_successful_trials(harp_df, td_df, print_trial_lengths=False)
+    
+    # for a in range(1,5):
+    #     plotter = PupilPlotter(pupil_df, harp_filtered, stage, 'testing', OUTPUT_PATH, [f'JK0{a}'])
+    #     plotter.align_pupil_by_session(filter=True)
+    #     #plotter.plot_distribution_by_session(show_plot=False)
+    #     # plotter.plot_overall_distribution(show_plot=False)
+    #     # plotter.plot_sessionwide_pupil_dilation(show_plot=False)
+    #     # plotter.plot_pitch_dependency(offset = 0.5)
+    #     # plotter.plot_overall_distribution(show_plot=False)
+    #     plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+    #     plotter.plot_overall_baseline_regressed_pupil(show_plot=False)
+    #     plotter.plot_stage5_perms(show_plot=False)
+        
+    # plotter = PupilPlotter(pupil_df, harp_filtered, stage, 'testing', OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
+    # plotter.align_pupil_by_session(filter=True)
+    # plotter.plot_overall_distribution(show_plot=False)
+    # plotter.plot_overall_baseline_sub_aligned_pupil(show_plot = False)
+    # plotter.plot_overall_baseline_regressed_pupil(show_plot=False)
+    # plotter.plot_stage5_perms(show_plot=False)
+    
     
     
     ################ GENERATE DATA FOR PRET MODEL #############################
