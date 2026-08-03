@@ -24,10 +24,11 @@ import data_io as tfio
 import pupillometry as tfp
 from pupillometry import PupilPlotter
 
-SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_full.csv")
+SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_cleaned.csv")
 HOME_PATH = Path(r"C:\bonsai\data\JungWoo")
 OUTPUT_PATH = Path(r"C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\Outputs")
-PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
+# PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
+PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_bandpass_90Hz_hpass01_lpass4')
 HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 
@@ -59,13 +60,12 @@ if __name__ == "__main__":
         plotter = PupilPlotter(pupil_df, harp_filtered, STAGE, 'testing', OUTPUT_PATH, [animal])
         plotter.align_pupil_by_session(filter=True)
         
-        window_sizes = [0.25] # np.linspace(0, 0.5, 11)
+        window_sizes = np.linspace(0.05, 0.5, 10)
         accuracies_by_window = {}
         
         for window_size in window_sizes:
             print(f'\nwindow size: {window_size}')
-            pip_df = plotter.prep_for_decoding(time_from_next_pip=window_size)
-            
+            pip_df = plotter.prep_for_decoding(tmax= 0.49, window_size=window_size, time_from_next_pip=None)
             pip_df.dropna(inplace=True)
             
             pip_df = pip_df[pip_df['stimulus_id'] != 'X']
@@ -76,7 +76,7 @@ if __name__ == "__main__":
             pip_df['second_tone'] = pip_df['stimulus_id'].str[1]
             pip_df['third_tone'] = pip_df['stimulus_id'].str[2]
             pip_df['fourth_tone'] = pip_df['stimulus_id'].str[3]
-            pip_df['remaining_sequence'] = pip_df['stimulus_id'].str[1:4]       
+            pip_df['remaining_sequence'] = pip_df['stimulus_id'].str[1:4]
             
             # Sample by minimum number of occurrences for all stimuli 
             min_stimulus_id = pip_df['stimulus_id'].value_counts().min()
@@ -239,11 +239,11 @@ if __name__ == "__main__":
                 task_save_suffix = task_info[7]
 
                 decoder.plot_confusion_matrix(labels=task_labels)
-                save_path = OUTPUT_PATH / "Decoding" / f"Stage5_{animal}_{task_save_suffix}_confusion_matrix_{window_size}.png"
+                save_path = OUTPUT_PATH / "Decoding" / f"{animal}_{task_save_suffix}_confusion_matrix_{window_size}.svg"
                 save_path.parent.mkdir(parents=True, exist_ok=True)
                 plt.savefig(save_path)
                 plt.close("all")
 
         print(accuracies_by_window)
-        with open(f'accuracies_by_window_{animal}_from_next.json', 'w') as f:
+        with open(f'bandpassed_accuracies_by_window_{animal}.json', 'w') as f:
             json.dump(accuracies_by_window, f)

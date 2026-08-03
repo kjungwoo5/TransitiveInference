@@ -22,10 +22,11 @@ import data_io as tfio
 import pupillometry as tfp
 from pupillometry import PupilPlotter
 
-SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_full.csv")
+SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_cleaned.csv")
 HOME_PATH = Path(r"C:\bonsai\data\JungWoo")
 OUTPUT_PATH = Path(r"C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\Outputs")
-PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
+# PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
+PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_bandpass_90Hz_hpass01_lpass4')
 HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 
@@ -64,7 +65,15 @@ def plot_observed_vs_permutation_boxplot(results_by_animal, output_path, data_ty
     permutation_mean_values = []
     
     plot_type = {"first_tone": "first tone",
-                 "sequence_identity": "sequence identity"}
+                "second_tone": "second tone",
+                "third_tone": "third tone",
+                "fourth_tone": "fourth tone",
+                "sequence_identity": "sequence identity",
+                "C_sequence_identity": "C-starting sequence ID",
+                "D_sequence_identity": "D-starting sequence ID",
+                "E_sequence_identity": "E-starting sequence ID",
+                "F_sequence_identity": "F-starting sequence ID",
+                }
 
     for animal, animal_results in results_by_animal.items():
         data_results = animal_results.get(data_type, {})
@@ -140,6 +149,60 @@ def run_permutation_test(predictors, features, n_permutations=999, cv_folds=5, n
 
 
 if __name__ == "__main__":
+    
+    # data_types = ['first', 'second', 'third', 'fourth', 'sequence', 'C_sequence', 'D_sequence', 'E_sequence', 'F_sequence']
+    # parameters = ['obs', 'perm']
+    
+    # df = pd.read_csv(r'C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\TransitiveInference\permutation_test_results.csv', header=0)
+    
+    # for data_type in data_types:
+        
+    #     output_path = OUTPUT_PATH / "Permutation Tests" / f"{data_type}_observed_vs_permutation_mean_boxplot_999.svg"
+        
+    #     animals = []
+    #     observed_values = []
+    #     permutation_mean_values = []
+        
+    #     plot_type = {"first": "first tone",
+    #                  "second": "second tone",
+    #                  "third": "third tone",
+    #                  "fourth": "fourth tone",
+    #                  "sequence": "sequence identity",
+    #                  "C_sequence": "C-starting sequence ID",
+    #                  "D_sequence": "D-starting sequence ID",
+    #                  "E_sequence": "E-starting sequence ID",
+    #                  "F_sequence": "F-starting sequence ID",
+    #                  }
+    
+    #     for animal in df.index.unique():
+    #         animals.append(animal)
+    #         observed_values.append(df.loc[animal,'_'.join([data_type, parameters[0]])])
+    #         permutation_mean_values.append(df.loc[animal,'_'.join([data_type, parameters[1]])])
+    
+    
+    #     fig, ax = plt.subplots(figsize=(8, 4.5))
+    #     data = [observed_values, permutation_mean_values]
+    
+    #     box = ax.boxplot(data, labels=["Observed accuracy", "Permutation mean"], patch_artist=True)
+    #     for patch in box["boxes"]:
+    #         patch.set(facecolor="lightgray", alpha=0.8)
+    
+    #     for idx, animal in enumerate(animals):
+    #         ax.plot([1, 2], [observed_values[idx], permutation_mean_values[idx]], color="tab:orange", alpha=0.7, linewidth=1.5)
+    #         ax.scatter(1, observed_values[idx], color="tab:red", s=50, zorder=3)
+    #         ax.scatter(2, permutation_mean_values[idx], color="black", s=50, zorder=3)
+    #         # ax.text(1.5, np.mean([observed_values[idx], permutation_mean_values[idx]]), animal,
+    #         #         ha="center", va="bottom", fontsize=8, color="black")
+    
+    #     ax.set_ylabel("Decoder accuracy")
+    #     ax.set_title(f"Observed vs permutation-mean accuracy of {plot_type.get(data_type, data_type)} by animal")
+    #     # ax.set_ylim(0, 1.05)
+    #     plt.tight_layout()
+    #     output_path.parent.mkdir(parents=True, exist_ok=True)
+    #     plt.savefig(output_path, dpi=300)
+    #     plt.close(fig)
+        
+    # quit()
     
     STAGE = 5
     window_size = 0.5
@@ -231,7 +294,7 @@ if __name__ == "__main__":
         plot_permutation_results(
             first_tone_results,
             title=f"{animal} - First tone permutation test",
-            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_first_tone_permutation_hist_999.png",
+            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_first_tone_permutation_hist_999.svg",
         )
         results_by_animal[animal]["first_tone"] = {
             "observed_accuracy": first_tone_results["observed_accuracy"],
@@ -260,7 +323,7 @@ if __name__ == "__main__":
         plot_permutation_results(
             second_tone_results,
             title=f"{animal} - Second tone permutation test",
-            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_second_tone_permutation_hist_999.png",
+            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_second_tone_permutation_hist_999.svg",
         )
         results_by_animal[animal]["second_tone"] = {
             "observed_accuracy": second_tone_results["observed_accuracy"],
@@ -290,7 +353,7 @@ if __name__ == "__main__":
         plot_permutation_results(
             third_tone_results,
             title=f"{animal} - Third tone permutation test",
-            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_third_tone_permutation_hist_999.png",
+            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_third_tone_permutation_hist_999.svg",
         )
         results_by_animal[animal]["third_tone"] = {
             "observed_accuracy": third_tone_results["observed_accuracy"],
@@ -319,7 +382,7 @@ if __name__ == "__main__":
         plot_permutation_results(
             fourth_tone_results,
             title=f"{animal} - Fourth tone permutation test",
-            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_fourth_tone_permutation_hist_999.png",
+            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_fourth_tone_permutation_hist_999.svg",
         )
         results_by_animal[animal]["fourth_tone"] = {
             "observed_accuracy": fourth_tone_results["observed_accuracy"],
@@ -348,7 +411,7 @@ if __name__ == "__main__":
         plot_permutation_results(
             sequence_results,
             title=f"{animal} - Sequence identity permutation test",
-            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_sequence_identity_permutation_hist_999.png",
+            output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_sequence_identity_permutation_hist_999.svg",
         )
         results_by_animal[animal]["sequence_identity"] = {
             "observed_accuracy": sequence_results["observed_accuracy"],
@@ -379,7 +442,7 @@ if __name__ == "__main__":
             plot_permutation_results(
                 sequence_results,
                 title=f"{animal} - {letter}-start sequence identity permutation test",
-                output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_{letter}_sequence_identity_permutation_hist_999.png",
+                output_path=OUTPUT_PATH / "Permutation Tests" / f"{animal}_{letter}_sequence_identity_permutation_hist_999.svg",
             )
             results_by_animal[animal][f"{letter}_sequence_identity"] = {
                 "observed_accuracy": sequence_results["observed_accuracy"],
@@ -391,38 +454,38 @@ if __name__ == "__main__":
 
     plot_observed_vs_permutation_boxplot(
         results_by_animal,
-        OUTPUT_PATH / "Permutation Tests" / "sequence_identity_observed_vs_permutation_mean_boxplot_999.png",
+        OUTPUT_PATH / "Permutation Tests" / "sequence_identity_observed_vs_permutation_mean_boxplot_999.svg",
         data_type = 'sequence_identity'
     )
 
     plot_observed_vs_permutation_boxplot(
         results_by_animal,
-        OUTPUT_PATH / "Permutation Tests" / "first_tone_observed_vs_permutation_mean_boxplot_999.png",
+        OUTPUT_PATH / "Permutation Tests" / "first_tone_observed_vs_permutation_mean_boxplot_999.svg",
         data_type = 'first_tone'
     )
     
     plot_observed_vs_permutation_boxplot(
             results_by_animal,
-            OUTPUT_PATH / "Permutation Tests" / "second_tone_observed_vs_permutation_mean_boxplot_999.png",
+            OUTPUT_PATH / "Permutation Tests" / "second_tone_observed_vs_permutation_mean_boxplot_999.svg",
             data_type = 'second_tone'
         )
     
     plot_observed_vs_permutation_boxplot(
             results_by_animal,
-            OUTPUT_PATH / "Permutation Tests" / "third_tone_observed_vs_permutation_mean_boxplot_999.png",
+            OUTPUT_PATH / "Permutation Tests" / "third_tone_observed_vs_permutation_mean_boxplot_999.svg",
             data_type = 'third_tone'
         )
     
     plot_observed_vs_permutation_boxplot(
             results_by_animal,
-            OUTPUT_PATH / "Permutation Tests" / "fourth_tone_observed_vs_permutation_mean_boxplot_999.png",
+            OUTPUT_PATH / "Permutation Tests" / "fourth_tone_observed_vs_permutation_mean_boxplot_999.svg",
             data_type = 'fourth_tone'
         )
     
     for letter in 'CDEF':
         plot_observed_vs_permutation_boxplot(
                     results_by_animal,
-                    OUTPUT_PATH / "Permutation Tests" / f"{letter}_sequence_observed_vs_permutation_mean_boxplot_999.png",
+                    OUTPUT_PATH / "Permutation Tests" / f"{letter}_sequence_observed_vs_permutation_mean_boxplot_999.svg",
                     data_type = f'{letter}_sequence_identity'
                 )
     
