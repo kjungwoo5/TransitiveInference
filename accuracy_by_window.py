@@ -3,10 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_full.csv")
+SESSION_PATH = Path(r"X:\Dammy\Xdetection_mouse_hf_test\session_topology_transitive_inference_cleaned.csv")
 HOME_PATH = Path(r"C:\bonsai\data\JungWoo")
 OUTPUT_PATH = Path(r"C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\Outputs")
-PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
+# PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_test_90Hz_hpass00_lpass0')
+PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_bandpass_90Hz_hpass01_lpass4')
 HARP_DIR = Path(r'X:\Dammy\harpbins')
 
 type_of_plot = {
@@ -19,7 +20,7 @@ type_of_plot = {
 
 for a in range(1,5):
     # Read data
-    df = pd.read_json(fr'C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\accuracies_by_window_JK0{a}_from_next.json').transpose()
+    df = pd.read_json(fr'C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\Coding\Analysis\bandpassed_accuracies_by_window_JK0{a}.json').transpose()
     print(df.head())
 
     for i, value in enumerate(type_of_plot.values()):
@@ -45,7 +46,7 @@ for a in range(1,5):
         plt.title(f'Decoding accuracy of {type_of_plot.get(i)} by window size for JK0{a}')
 
         fig = plt.gcf()
-        fig.savefig(fr'{OUTPUT_PATH}\Accuracies by window size\JK0{a}\Stage5_JK0{a}_{type_of_plot.get(i)}_accuracies.png')
+        fig.savefig(fr'{OUTPUT_PATH}\Accuracies by window size\JK0{a}\Stage5_JK0{a}_{type_of_plot.get(i)}_accuracies.svg')
         fig.clear()
         
 # Issue: very heterogeneous curves, have to decide what to base the decoding on. 
