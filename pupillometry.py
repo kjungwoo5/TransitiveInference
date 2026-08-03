@@ -48,16 +48,16 @@ STIMULUS_COLOURS = {
     'BCDE': 'g',
     'Normal': 'b',
     'Deviant': 'r',
-    'A': 'oldlace', 
-    'B': 'blanchedalmond', 
-    'C': 'wheat', 
-    'D': 'burlywood', 
-    'E': 'sandybrown', 
-    'F': 'peru', 
-    'G': 'sienna', 
-    'H': 'saddlebrown', 
-    'I': 'firebrick', 
-    'J': 'darkred',
+    'A': '#292f56',
+    'B': '#4a3867',
+    'C': '#6d406f',
+    'D': '#904b6c',
+    'E': '#af595f',
+    'F': '#c66d4a',
+    'G': '#d28a30',
+    'H': '#cfab27',
+    'I': '#bacf4e',
+    'J': '#90f28c',
     'CFED': 'r'
 }
 
@@ -71,46 +71,79 @@ OUTPUT_SUBDIRS = {
 ALL_ANIMALS = ['JK01', 'JK02', 'JK03', 'JK04']
 
 Y_LIMS = {
-    4: {
-        'JK01': (-0.25,0.35),
-        'JK02': (-0.5,0.7),
-        'JK03': (-0.5,0.4),
-        'JK04': (-0.5,0.6),
-        ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
-        'JK01_early_filtered': (-0.3, 0.3),
-        'JK01_late_filtered': (-0.3, 0.3),
-        'JK01_filtered': (-0.15, 0.3),
-        'JK02_filtered': (-0.4, 0.6),
-        'JK03_filtered': (-0.4, 0.8),
-        'JK04_filtered': (-0.5, 0.8),
-    },
-    5: {
-        'JK01': (-0.25,0.35),
-        'JK02': (-0.5,0.7),
-        'JK03': (-0.5,0.4),
-        'JK04': (-0.5,0.6),
-        ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
-        'JK01_early_filtered': (-0.3, 0.3),
-        'JK01_late_filtered': (-0.3, 0.3),
-        'JK01_filtered': (-0.2, 0.35),
-        'JK02_filtered': (-0.3, 0.3),
-        'JK03_filtered': (-0.3, 0.6),
-        'JK04_filtered': (-0.4, 0.7),
-    }
+    # 4: {
+    #     'JK01': (-0.25,0.35),
+    #     'JK02': (-0.5,0.7),
+    #     'JK03': (-0.5,0.4),
+    #     'JK04': (-0.5,0.6),
+    #     ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
+    #     'JK01_early_filtered': (-0.3, 0.3),
+    #     'JK01_late_filtered': (-0.3, 0.3),
+    #     'JK01_filtered': (-0.15, 0.3),
+    #     'JK02_filtered': (-0.4, 0.6),
+    #     'JK03_filtered': (-0.4, 0.8),
+    #     'JK04_filtered': (-0.5, 0.8),
+    # },
+    # 5: {
+    #     'JK01': (-0.25,0.35),
+    #     'JK02': (-0.5,0.7),
+    #     'JK03': (-0.5,0.4),
+    #     'JK04': (-0.5,0.6),
+    #     ' JK01, JK02, JK03, JK04 ': (-0.35,0.35),
+    #     'JK01_early_filtered': (-0.3, 0.3),
+    #     'JK01_late_filtered': (-0.3, 0.3),
+    #     'JK01_filtered': (-0.2, 0.35),
+    #     'JK02_filtered': (-0.3, 0.3),
+    #     'JK03_filtered': (-0.3, 0.6),
+    #     'JK04_filtered': (-0.4, 0.7),
+    # }
 }
 
 PERMS_Y_LIMS = {
-    'JK01_filtered': (-0.2, 0.2),
-    'JK02_filtered': (-0.3, 0.3),
-    'JK03_filtered': (-0.3, 0.4),
-    'JK04_filtered': (-0.4, 0.3),
+    'JK01_filtered': (-0.4, 0.7),
+    'JK02_filtered': (-0.7, 1.1),
+    'JK03_filtered': (-0.4, 1.3),
+    'JK04_filtered': (-0.4, 1.0),
+}
+
+STAGE1_FREQUENCIES = {
+    'A': '5275', 
+    'B': '5920', 
+    'C': '6646', 
+    'D': '7459', 
+    'E': '8373', 
+    'F': '9398', 
+    'G': '10550', 
+    'H': '11841', 
+    'I': '13292', 
+    'J': '14919',
+}
+
+THESIS_STAGES = {
+    1: 1,
+    4: 2, 
+    5: 3,
 }
 
 
+def autolabel(rects, ax):
+    # Get y-axis height to calculate label position from.
+    (y_bottom, y_top) = ax.get_ylim()
+    y_height = y_top - y_bottom
+
+    for rect in rects:
+        height = rect.get_height()
+
+        # Fit the label above the column
+        label_position = height + (y_height * 0.01)
+
+        ax.text(rect.get_x() + rect.get_width()/2., label_position,
+                '%d' % int(height),
+                ha='center', va='bottom')
 
 class PupilPlotter:
     from stage_specific_funcs import plot_pitch_dependency, plot_difference, plot_cosine_similarity, prep_for_decoding, plot_stage5_perms
-    
+    from stage_specific_funcs import plot_stage1_window_diagram, plot_differences_method, plot_pupil_preprocessing, plot_stage1_peak_time_by_stimulus
     
     def __init__(self, pupil_df: pd.DataFrame, harp_df: pd.DataFrame, stage: int, type_of_analysis: str, output_path: Path, animals: list):
         valid_types_of_analysis = {'testing', 'exposure', 'first', 'second'}
@@ -436,7 +469,7 @@ class PupilPlotter:
                 plt.show()
             if save_figure:
                 os.makedirs(self.output_path / fr'Whole Session Pupils', exist_ok=True)
-                fig.savefig(self.output_path / fr'Whole Session Pupils\{session}_fullsession.png')
+                fig.savefig(self.output_path / fr'Whole Session Pupils\{session}_fullsession.svg')
             fig.clf()
             plt.close()
             
@@ -484,7 +517,7 @@ class PupilPlotter:
             if save_figure:
                 os.makedirs(fr'{self.output_path}\{self.output_subdir}\Individual Sessions', exist_ok=True)
                 fig.savefig(
-                    fr'{self.output_path}\{self.output_subdir}\Individual Sessions\Stage{self.stage}_{session}.png')
+                    fr'{self.output_path}\{self.output_subdir}\Individual Sessions\Stage{self.stage}_{session}.svg')
             fig.clf()
 
 
@@ -523,11 +556,11 @@ class PupilPlotter:
             if save_figure:
                 os.makedirs(fr'{self.output_path}\{self.output_subdir}\Actual Distributions', exist_ok=True)
                 fig.savefig(
-                    fr'{self.output_path}\{self.output_subdir}\Actual Distributions\By Session\Stage{self.stage}_{session}_distribution.png'
+                    fr'{self.output_path}\{self.output_subdir}\Actual Distributions\By Session\Stage{self.stage}_{session}_distribution.svg'
                 )
             fig.clf()
 
-    def aggregate_total(self, baseline_data = False, store_session = False) -> dict:
+    def aggregate_total(self, baseline_data = False) -> dict:
         total_responses = {}
         for stimulus in self.types_of_stimuli:
             aggregate = []
@@ -540,34 +573,10 @@ class PupilPlotter:
                 if self.stage == 1:
                     baseline_mean = response.loc[:, -0.10:0.10].mean(axis=1)
                 else:
-                    baseline_mean = response.loc[:, -0.2:0.2].mean(axis=1)
+                    baseline_mean = response.loc[:, -0.15:0.15].mean(axis=1)
                 total_responses[event_id] = response.sub(baseline_mean, axis=0)
         return total_responses
 
-    def plot_overall_pupil(self, save_figure = True, show_plot = True):
-        animals_to_list = ', '.join(self.animals)
-
-        aggregated_aligned_pupil = self.aggregate_total()
-        pupil_plot = plt.subplots()
-        for event_id, response in aggregated_aligned_pupil.items():
-            pupil_plot[1].plot(response.columns, response.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
-            plot_shaded_error_ts(pupil_plot[1],response.columns,response.mean(axis=0), response.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
-        pupil_plot[1].legend()
-        pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
-        annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
-        pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
-        pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
-        pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
-        pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-        pupil_plot[0].suptitle(f'Non-baselined plot for {animals_to_list}')
-        fig = plt.gcf()
-        if show_plot:
-            pupil_plot[0].show()
-        if save_figure:
-            os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_nonbaselined.png')
-        fig.clf()
     
     def plot_overall_baseline_sub_aligned_pupil(self, save_figure = True, show_plot = True, use_median = False):
         animals_to_list = ', '.join(self.animals)
@@ -575,7 +584,10 @@ class PupilPlotter:
         aggregated_aligned_pupil = self.aggregate_total()
         pupil_plot = plt.subplots()
         for event_id, response in aggregated_aligned_pupil.items():
-            baseline_mean = response.loc[:, -1:0].mean(axis=1)
+            if self.stage == 1:
+                baseline_mean = response.loc[:, -0.15:0.15].mean(axis=1)
+            else:
+                baseline_mean = response.loc[:, -1:0].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
             if not use_median:
                 pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
@@ -587,21 +599,23 @@ class PupilPlotter:
         pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
         annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
+        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, None))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-        pupil_plot[0].suptitle(f'Baseline subtracted plot for {animals_to_list}')
+        pupil_plot[1].set_ylabel('Pupil size (a.u.)')
+        pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
+        pupil_plot[0].suptitle(f'{animals_to_list} pupil size for stage {THESIS_STAGES.get(self.stage)}')
         fig = plt.gcf()
         if show_plot:
             pupil_plot[0].show()
         if save_figure:
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
             if not use_median:
-                fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted.png')
+                fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted.svg')
             else: 
-                fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_median.png')
+                fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_median.svg')
         fig.clf()
         
         
@@ -633,18 +647,20 @@ class PupilPlotter:
         # pupil_plot[1].axvline(0, color='k', linestyle='--')
         annotation = f'n = {n_stimuli} stimuli'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
+        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, None))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-        pupil_plot[0].suptitle(f'Baseline Subtracted plot of training stimuli for {animals_to_list}')
+        pupil_plot[1].set_ylabel('Pupil size (a.u.)')
+        pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
+        pupil_plot[0].suptitle(f'{animals_to_list} pupil responses to training stimuli')
         fig = plt.gcf()
         if show_plot:
             pupil_plot[0].show()
         if save_figure:
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_Training.png')
+            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_Training.svg')
         plt.pause(0.1)
 
     def plot_baseline_sub_testing(self, save_figure = True, show_plot = True):
@@ -674,24 +690,31 @@ class PupilPlotter:
         # pupil_plot[1].axvline(0, color='k', linestyle='--')
         annotation = f'n = {n_stimuli} stimuli'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, (-0.5,0.5)))
+        pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, None))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-        pupil_plot[0].suptitle(f'Baseline Subtracted plot of testing stimuli for {animals_to_list}')
+        pupil_plot[1].set_ylabel('Pupil size (a.u.)')
+        pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
+        pupil_plot[0].suptitle(f'{animals_to_list} pupil responses to testing stimuli')
         fig = plt.gcf()
         if show_plot:
             pupil_plot[0].show()
         if save_figure:
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_Testing.png')
+            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{animals_to_list}_Baseline_Subtracted_Testing.svg')
         fig.clf()
         
         
 
     def plot_overall_distribution(self, save_figure = True, show_plot = True):
+        
         animals_to_list = ', '.join(self.animals)
+        if animals_to_list.strip() == 'JK01_filtered, JK02_filtered, JK03_filtered, JK04_filtered':
+            animals_to_list = 'all animals'
+        animals_to_list = animals_to_list.strip('_filtered')
+        
         aggregated_aligned_pupil = self.aggregate_total()
         plt.pause(0.1)
         if self.stage == 5:
@@ -699,23 +722,39 @@ class PupilPlotter:
         else: 
             dist_plot = plt.subplots()
         actual_distribution = {}
+        y_max = 0.0
+        n_stims = 0
         for stimulus in self.types_of_stimuli:
-            if self.stage == 5 and stimulus == 'X':
+            if self.stage == 5 and (stimulus == 'ABGH' or stimulus == 'GHAB') or stimulus == 'X': 
                 continue
             actual_distribution[stimulus] = len(aggregated_aligned_pupil[stimulus])
-            dist_plot[1].bar(stimulus, actual_distribution[stimulus], color=STIMULUS_COLOURS.get(stimulus, None))
-            dist_plot[1].text(stimulus, actual_distribution[stimulus] + 5, str(actual_distribution[stimulus]), ha='center',
-                            va='center')
+            if dist_plot[1].get_ylim()[1] * 1.035 > y_max:
+                y_max = dist_plot[1].get_ylim()[1] * 1.035
+                rects = dist_plot[1].bar(n_stims, actual_distribution[stimulus], color=STIMULUS_COLOURS.get(stimulus, None))
+            rects = dist_plot[1].bar(stimulus, actual_distribution[stimulus], color=STIMULUS_COLOURS.get(stimulus, None))
+            autolabel(rects, dist_plot[1])
+            n_stims += 1
+            # dist_plot[1].text(stimulus, actual_distribution[stimulus] + 5, str(actual_distribution[stimulus]), ha='center',
+            #                 va='center')
 
-        dist_plot[0].suptitle(f'Overall distribution for: {animals_to_list}')
+        if self.stage == 1:
+            xticks = np.arange(0, n_stims, 1)
+            dist_plot[1].set_xticks(xticks, STAGE1_FREQUENCIES.values())
+            xlabel = 'Stimuli (Hz)'
+        else: 
+            xlabel = 'Stimuli'
+        dist_plot[0].suptitle(f'Overall distribution of stimuli for {animals_to_list}')
         annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
-        dist_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=dist_plot[1].get_xaxis_transform())
+        dist_plot[1].set_ylim(ymax= y_max)
+        dist_plot[1].set_ylabel('Count')
+        dist_plot[1].set_xlabel(xlabel)
+        dist_plot[1].annotate(annotation, xy=(0.005, 1.02), xycoords=dist_plot[1].get_xaxis_transform())
         fig = plt.gcf()
         if show_plot:
             dist_plot[0].show()
         if save_figure:
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\Actual Distributions', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\Actual Distributions\Stage{self.stage}_{animals_to_list}_distribution.png')
+            fig.savefig(fr'{self.output_path}\{self.output_subdir}\Actual Distributions\Stage{self.stage}_{animals_to_list}_distribution.svg')
         fig.clf()
     
         
@@ -928,7 +967,7 @@ class PupilPlotter:
         base_eff_plot[0].suptitle(f'Baselined effects plot for {animals_to_list}')
         fig = plt.gcf()
         base_eff_plot[0].show()
-        fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Coeff_Contribution.png')
+        fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Coeff_Contribution.svg')
 
         # Plot R2
         plt.pause(0.1)
@@ -941,7 +980,7 @@ class PupilPlotter:
         base_r2_plot[0].suptitle(f'Baselined R2 plot for {animals_to_list}')
         fig = plt.gcf()
         base_r2_plot[0].show()
-        fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Coeff_R2.png')
+        fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Coeff_R2.svg')
 
         # Apply the session-wide baseline regression back to every session.
         baselined_sessions = self.regress_out_baseline_across_sessions(
@@ -977,6 +1016,8 @@ class PupilPlotter:
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
+        pupil_plot[1].set_ylabel('Pupil size (a.u.)')
+        pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
         #pupil_plot[1].set_ylim(Y_LIMS.get(animals_to_list, (-0.5,0.5)))
         #pupil_plot[0].suptitle(f'Baseline Regressed plot for {animals_to_list}')
         pupil_plot[0].suptitle(f'Baseline Regressed plot for {animals_to_list}')
@@ -984,6 +1025,6 @@ class PupilPlotter:
         if show_plot:
             pupil_plot[0].show()
         if save_figure:
-            fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Baseline_Regressed.png')
+            fig.savefig(self.output_path / fr'Stage {self.stage} Baseline Regression\{animals_to_list}_Baseline_Regressed.svg')
         plt.pause(0.1)
         fig.clf()

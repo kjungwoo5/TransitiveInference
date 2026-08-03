@@ -1,9 +1,13 @@
+import matplotlib as mpl
+from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 from pathlib import Path
 from numpy.linalg import norm
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
+from scipy import signal
 from sklearn.linear_model import LinearRegression
 
 import os
@@ -12,25 +16,16 @@ import sys
 sys.path.append('../')
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from Analysis.XdetectionCore.xdetectioncore.plotting import plot_shaded_error_ts, format_axis
-from pupillometry import PERMS_Y_LIMS, STIMULUS_COLOURS, PLOTTING_WINDOW
+from pupillometry import STIMULUS_COLOURS, PLOTTING_WINDOW, STAGE1_FREQUENCIES, Y_LIMS, PERMS_Y_LIMS
 
-STAGE1_FREQUENCIES = {
-    'A': '5275', 
-    'B': '5920', 
-    'C': '6646', 
-    'D': '7459', 
-    'E': '8373', 
-    'F': '9398', 
-    'G': '10550', 
-    'H': '11841', 
-    'I': '13292', 
-    'J': '14919',
-}
 
 # STAGE 1
-def plot_pitch_dependency(self, offset = 0.525, window_size = 0.25, save_figure = True, show_plot = True, omit_outliers = True, show_means_as_points = True):
+def plot_pitch_dependency(self, offset = 0.525, window_size = 0.25, save_figure = True, show_plot = True, omit_outliers = True, show_means_as_points = True, plot_quad = True):
     animal = [animal.split('_')[0] for animal in self.animals]
     animals_to_list = ', '.join(animal)
+    
+    if animals_to_list.strip() == 'JK01, JK02, JK03, JK04':
+        animals_to_list = 'all mice'
 
     aggregated_aligned_pupil = self.aggregate_total()
     fig, ax = plt.subplots()
@@ -64,41 +59,174 @@ def plot_pitch_dependency(self, offset = 0.525, window_size = 0.25, save_figure 
     if not plot_data:
         return
 
-    if show_means_as_points:
-        means = [np.mean(values) for values in plot_data]
-        for label, mean in zip(labels, means):
-            ax.scatter(label, mean, color='black', s=40)
-            # ax.text(label, mean + 0.01, f'{mean:.2f}', ha='center', va='bottom', fontsize=8)
-    else:
-        box = ax.boxplot(
-            plot_data,
-            labels=labels,
-            patch_artist=True,
-            widths=0.5,
-            showfliers=False,
-        )
-        for patch, event_id in zip(box['boxes'], labels):
-            patch.set_facecolor(STIMULUS_COLOURS.get(event_id, 'lightgray'))
-            patch.set_alpha(0.6)
 
+    means = [np.mean(values) for values in plot_data]
+    
+    #calculate equation for quadratic trendline
+    i = np.arange(0,len(labels))
+    z = np.polyfit(i, means, 2)
+    p_quad = np.poly1d(z)
+
+    #add trendline to plot
+    if plot_quad == True:
+        plt.plot(
+            i,
+            p_quad(i),
+            color='gray', linestyle='--', label=f'Quadratic best fit line'
+        )
+        plt.legend()
+    
+    for label, mean in zip(labels, means):
+        ax.scatter(label, mean, color='black', s=40)
+        # ax.text(label, mean + 0.01, f'{mean:.2f}', ha='center', va='bottom', fontsize=8)
+
+
+    
     ax.set_xlabel('Stimulus Frequency (Hz)')
     ax.set_xticklabels(STAGE1_FREQUENCIES.values())
-    ax.set_ylabel('Pupil dilation')
+    ax.set_ylabel(r'Pupil size (a.u.)')
     ax.margins(y=0.05)
     ax.set_title(f'Pitch dependency for {animals_to_list} \n')
     annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
-    ax.annotate(annotation, xy=(0.3, 1.02), xycoords=ax.get_xaxis_transform())
+    ax.annotate(annotation, xy=(0.005, 1.02), xycoords=ax.get_xaxis_transform())
+    
     fig = plt.gcf()
     
     if show_plot:
         fig.show()
     if save_figure:
         os.makedirs(fr'{self.output_path}\Pitch Dependency', exist_ok=True)
-        fig.savefig(fr'{self.output_path}\Pitch Dependency\Stage{self.stage}_{animals_to_list}_Pitch_Dependency_{offset}.png')
+        fig.savefig(fr'{self.output_path}\Pitch Dependency\{animals_to_list}_Pitch_Dependency_{offset}_{window_size}_{plot_quad}.svg')
+    fig.clf()
+
+def plot_stage1_window_diagram(self, stim_to_show: str, window = (0, 0.75), save_figure = True, show_plot = True): 
+    animals_to_list = ', '.join(self.animals)
+    animals_to_list = animals_to_list.split('_')[0]
+    
+    aggregated_aligned_pupil = self.aggregate_total()
+    pupil_plot = plt.subplots()
+    for event_id, response in aggregated_aligned_pupil.items():
+        if event_id != stim_to_show:
+            continue
+        baseline_mean = response.loc[:, -0.05:0.05].mean(axis=1)
+        baselined = response.sub(baseline_mean, axis=0)
+        pupil_plot[1].plot(baselined.columns, baselined.median(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+        plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.median(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+    pupil_plot[1].set_xlim((window[0], window[1]))
+    annotation = f'n = {aggregated_aligned_pupil[stim_to_show].shape[0]} stimuli'
+    pupil_plot[1].annotate(annotation, xy=(0.005, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+    pupil_plot[1].set_ylim((-0.05, 0.16))
+    pupil_plot[1].set_ylabel(r'Pupil size (a.u.)')
+    pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
+    
+    pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
+ 
+    
+    bl = (0.45, -0.03)
+    tr = (0.55, pupil_plot[1].get_ylim()[1] * 0.90)
+    
+    pupil_plot[1].plot([bl[0],tr[0]], [bl[1],bl[1]], '--', color= 'gray')
+    pupil_plot[1].plot([tr[0],tr[0]], [bl[1], tr[1]], '--', color= 'gray')
+    pupil_plot[1].plot([tr[0],bl[0]], [tr[1], tr[1]], '--', color= 'gray')
+    pupil_plot[1].plot([bl[0],bl[0]], [tr[1],bl[1]], '--', color= 'gray')
+    
+    pupil_plot[0].suptitle(f'{animals_to_list} pupil response to {STAGE1_FREQUENCIES.get(stim_to_show)} Hz tone')
+    fig = plt.gcf()
+    if show_plot:
+        pupil_plot[0].show()
+    if save_figure:
+        os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True) 
+        fig.savefig(fr'{self.output_path}\Stage 1\{animals_to_list}_{stim_to_show}_methods.svg')
     fig.clf()
 
 
+def plot_stage1_peak_time_by_stimulus(self, baseline_window=(-0.15, 0.15), search_window=(0.15, 0.75), save_figure=True, show_plot=True):
+    animals_to_list = ', '.join(self.animals)
+    animals_to_list = animals_to_list.split('_')[0]
+
+    aggregated_aligned_pupil = self.aggregate_total()
+    stimuli = []
+    peak_times = []
+    stimulus_labels = []
+
+    for event_id, response in aggregated_aligned_pupil.items():
+        if event_id == 'X':
+            continue
+
+        baseline_mean = response.loc[:, baseline_window[0]:baseline_window[1]].mean(axis=1)
+        baselined = response.sub(baseline_mean, axis=0)
+        mean_trace = baselined.mean(axis=0)
+
+        times = np.asarray(mean_trace.index, dtype=float)
+        values = np.asarray(mean_trace.to_numpy(), dtype=float)
+
+        start_idx = np.searchsorted(times, search_window[0], side='left')
+        end_idx = np.searchsorted(times, search_window[1], side='right')
+
+        if start_idx >= len(times):
+            continue
+        if end_idx <= start_idx:
+            continue
+
+        search_values = values[start_idx:end_idx]
+        search_times = times[start_idx:end_idx]
+
+        if search_values.size == 0:
+            continue
+
+        derivative = np.gradient(search_values, search_times)
+        local_max_idx = None
+        for idx in range(1, len(derivative) - 1):
+            if derivative[idx - 1] > 0 and derivative[idx] <= 0:
+                local_max_idx = idx
+                break
+
+        if local_max_idx is None:
+            local_max_idx = int(np.argmax(search_values))
+
+        peak_time = float(search_times[local_max_idx])
+        stimuli.append(event_id)
+        peak_times.append(peak_time)
+        stimulus_labels.append(STAGE1_FREQUENCIES.get(event_id, event_id))
+
+    if not stimuli:
+        return
+
+    fig, ax = plt.subplots()
+    col = ['grey' if peak_time in {0.15, 0.75} else 'black' for peak_time in peak_times]
+    ax.scatter(stimulus_labels, peak_times, color=col, s=50)
+    for x, y, label, color in zip(stimulus_labels, peak_times, stimuli, col):
+        ax.annotate(y, (x, y), textcoords='offset points', xytext=(0, 6), ha='center', fontsize=8, color=color)
+    peak_times_inliers = [peak_time for peak_time in peak_times if peak_time != 0.15 and peak_time != 0.75]
+    print(f"{animals_to_list}: Mean peak time: {np.mean(peak_times_inliers):.3f} s, Std Dev: {np.std(peak_times_inliers):.3f} s")
+    ax.set_xlabel('Stimulus frequency (Hz)')
+    ax.set_ylabel('Time to peak (s)')
+    ax.set_ylim(0.1,0.8)
+    ax.set_title(f'Time from stimulus onset to peak pupil size for {animals_to_list}')
+    ax.grid(True, alpha=0.3)
+
+    if show_plot:
+        fig.show()
+    if save_figure:
+        os.makedirs(fr'{self.output_path}\Stage 1', exist_ok=True)
+        fig.savefig(fr'{self.output_path}\Stage 1\{animals_to_list}_local_max_time_by_stimulus.svg')
+
+    fig.clf()
+    return np.mean(peak_times_inliers)
+
+
 # STAGE 4
+def plot_pupil_preprocessing(self, session_id: str = "260603_000", show_plot = True, save_figure = True):
+    if len(self.animals) > 1:
+        raise ValueError("Plotting pupil preprocessing only works for one animal at a time.")
+    
+    animal = ''.join(self.animals).strip('_filtered')
+    raw_pupil = pd.read_csv(fr"X:\Dammy\mouse_pupillometry\mouse_hf\{animal}_{session_id}\{animal}_{session_id.split('_')[0]}_eye0_eye_ellipse.csv", header = 0)
+    fig, ax = plt.subplots()
+    ax.plot(raw_pupil['frame_num'], raw_pupil['radius'])
+    plt.savefig('test.svg')
+    
+
 def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by_session = True, show_plot = True, save_figure = True, regress_baseline = False):
     animals_to_list = ', '.join(self.animals)
     
@@ -118,7 +246,6 @@ def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by
         base_window=baseline_window,
         events_to_regress=[event_id for event_id in self.types_of_stimuli if event_id != 'X']
     )
-    
     
     pupil_plot = plt.subplots()
     
@@ -159,14 +286,9 @@ def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by
             shuffled_differences.append(shuffled_difference)
             
             
-        
         data = [observed_differences, shuffled_differences]
         
-        # n: 9, 9, 11, 9
-        
-        
         wilcoxon = stats.wilcoxon(data[0], data[1], alternative='greater')
-        
         
         box = pupil_plot[1].boxplot(data, labels=["Data", "Shuffle"], patch_artist=True)
         for patch in box["boxes"]:
@@ -186,9 +308,54 @@ def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by
         
         
         fig = plt.gcf()
-        fig.savefig(fr'{self.output_path}\Differences\{window}_{regress_baseline}_{animals_to_list}_Differences.png')
+        fig.savefig(fr'{self.output_path}\Differences\{window}_{regress_baseline}_{animals_to_list}_Differences.svg')
         fig.clf()
-                
+
+def plot_differences_method(self, normal_stim: str, deviant_stim: str, window: tuple, show_plot = True, save_figure = True):
+    animals_to_list = ', '.join(self.animals)
+    animals_to_list = animals_to_list.split('_')[0]
+    
+    aggregated_aligned_pupil = self.aggregate_total()
+    pupil_plot = plt.subplots()
+    for event_id, response in aggregated_aligned_pupil.items():
+        if event_id != normal_stim and event_id != deviant_stim:
+            continue
+        baseline_mean = response.loc[:, -1:0].mean(axis=1)
+        baselined = response.sub(baseline_mean, axis=0)
+        pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+        plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+    pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
+    annotation = f'n {normal_stim} = {aggregated_aligned_pupil[normal_stim].shape[0]}, n {deviant_stim} = {aggregated_aligned_pupil[deviant_stim].shape[0]}'
+    pupil_plot[1].annotate(annotation, xy=(-1.005, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+    pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, None))
+    pupil_plot[1].set_ylabel(r'Pupil size (a.u.)')
+    pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
+    pupil_plot[1].legend(loc = 'upper left')
+    pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
+    
+    
+    bl = (window[0], pupil_plot[1].get_ylim()[0] * 0.90)
+    tr = (window[1], pupil_plot[1].get_ylim()[1] * 0.90)
+    
+    pupil_plot[1].plot([bl[0],tr[0]], [bl[1],bl[1]], '--', color= 'gray')
+    pupil_plot[1].plot([tr[0],tr[0]], [bl[1], tr[1]], '--', color= 'gray')
+    pupil_plot[1].plot([tr[0],bl[0]], [tr[1], tr[1]], '--', color= 'gray')
+    pupil_plot[1].plot([bl[0],bl[0]], [tr[1],bl[1]], '--', color= 'gray')
+    
+    pupil_plot[0].suptitle(f'{animals_to_list} pupil response to Stage 2 testing stimuli')
+    
+    # pupil_plot[1].spines[['right', 'top']].set_visible(False)
+    
+    fig = plt.gcf()
+    if show_plot:
+        pupil_plot[0].show()
+    if save_figure:
+        os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True) 
+        fig.savefig(fr'{self.output_path}\Stage 4\{animals_to_list}_differences_methods.svg')
+    fig.clf()
 
 def plot_cosine_similarity(self, stim1id: str, stim2id: str, window: tuple, show_plot = True, save_figure = True):
     
@@ -232,33 +399,33 @@ def plot_cosine_similarity(self, stim1id: str, stim2id: str, window: tuple, show
     pupil_plot[1].plot(session_numbers, poly1d_fn(session_numbers), '--r', label = r_squared)
     
     pupil_plot[0].suptitle(f'{animals_to_list} cosine similarities in pupil dilation for training stimuli')
-    pupil_plot[1].legend()
+    pupil_plot[1].legend(loc = 'top left')
         
     
     fig = plt.gcf()
-    fig.savefig(fr'{self.output_path}\Similarities\Stage{self.stage}_{animals_to_list}_Similarities.png')
+    fig.savefig(fr'{self.output_path}\Similarities\Stage{self.stage}_{animals_to_list}_Similarities.svg')
     fig.clf()
 
 
 # STAGE 5
 def prep_for_decoding(self, window_size = 0.1, tmax = 0.64, time_from_next_pip = None):
     pip_dilations = []
-    aggregated_aligned_pupil = self.aggregate_total(baseline_data=True)
+    aggregated_aligned_pupil = self.aggregate_total(baseline_data=False)
     
     # Correct each individual trial such that baseline is around 0 at 0s
     for event_id, response in aggregated_aligned_pupil.items():
         pip_dilation = []
         for index, row in response.iterrows():
-            # baseline_mean = row.loc[-0.25:0.25].mean()
-            # row = row.sub(baseline_mean)
+            baseline_mean = row.loc[-0.15:0.15].mean()
+            row = row.sub(baseline_mean)
             
             if time_from_next_pip == None: 
                 # Get mean pupil dilation from windows of 100ms centred around 
                 # tmax (640ms), tmax + 500ms, tmax + 1000ms, and tmax + 1500ms respectively
-                a = row.loc[tmax-window_size/2 : tmax+window_size/2].mean()
-                b = row.loc[tmax+0.5-window_size/2 : tmax+0.5+window_size/2].mean()
-                c = row.loc[tmax+1.0-window_size/2 : tmax+1.0+window_size/2].mean()
-                d = row.loc[tmax+1.5-window_size/2 : tmax+1.5+window_size/2].mean()
+                a = row.loc[tmax-(window_size/2) : tmax+(window_size/2)].mean()
+                b = row.loc[tmax+0.5-(window_size/2) : tmax+0.5+(window_size/2)].mean()
+                c = row.loc[tmax+1.0-(window_size/2) : tmax+1.0+(window_size/2)].mean()
+                d = row.loc[tmax+1.5-(window_size/2) : tmax+1.5+(window_size/2)].mean()
             else: 
                 # Get mean pupil dilation from times going back from next pip offset time
                 # 0.65-window, 1.15-window, 1.65-window, 2.15-window respectively
@@ -292,25 +459,27 @@ def plot_stage5_perms(self, save_figure = True, show_plot = True):
             elif (start_letter == 'A') and ((event_id[0] != start_letter) and (event_id[0] != 'G')): 
                 continue
             n_stimuli += len(response.index)
-            baseline_mean = response.loc[:, -1:0].mean(axis=1)
+            baseline_mean = response.loc[:, -0.15:0.15].mean(axis=1)
             baselined = response.sub(baseline_mean, axis=0)
             pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
             plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
-        pupil_plot[1].legend()
+        pupil_plot[0].suptitle(f'{animals_to_list.strip("_filtered")} pupil response to {start_letter}-starting sequences')
+        pupil_plot[1].legend(loc = 'upper left')
         pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
         annotation = f'n = {n_stimuli} stimuli'
         pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-        pupil_plot[1].set_ylim(PERMS_Y_LIMS.get(animals_to_list, (-0.5,0.5)))
+        pupil_plot[1].set_ylim(PERMS_Y_LIMS.get(animals_to_list, None))
+        pupil_plot[1].set_ylabel('Pupil size (a.u.)')
+        pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
-        pupil_plot[0].suptitle(f'Baseline subtracted plot for {animals_to_list}')
         fig = plt.gcf()
         if show_plot:
             pupil_plot[0].show()
         if save_figure:
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
-            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{start_letter}Sequences_{animals_to_list}_Baseline_Subtracted.png')
+            fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{start_letter}Sequences_{animals_to_list}_Baseline_Subtracted.svg')
         fig.clf()
         
