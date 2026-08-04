@@ -216,15 +216,8 @@ def plot_stage1_peak_time_by_stimulus(self, baseline_window=(-0.15, 0.15), searc
 
 
 # STAGE 4
-def plot_pupil_preprocessing(self, session_id: str = "260603_000", show_plot = True, save_figure = True):
-    if len(self.animals) > 1:
-        raise ValueError("Plotting pupil preprocessing only works for one animal at a time.")
-    
-    animal = ''.join(self.animals).strip('_filtered')
-    raw_pupil = pd.read_csv(fr"X:\Dammy\mouse_pupillometry\mouse_hf\{animal}_{session_id}\{animal}_{session_id.split('_')[0]}_eye0_eye_ellipse.csv", header = 0)
-    fig, ax = plt.subplots()
-    ax.plot(raw_pupil['frame_num'], raw_pupil['radius'])
-    plt.savefig('test.svg')
+
+
     
 
 def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by_session = True, show_plot = True, save_figure = True, regress_baseline = False):
@@ -320,14 +313,14 @@ def plot_differences_method(self, normal_stim: str, deviant_stim: str, window: t
     for event_id, response in aggregated_aligned_pupil.items():
         if event_id != normal_stim and event_id != deviant_stim:
             continue
-        baseline_mean = response.loc[:, -1:0].mean(axis=1)
+        baseline_mean = response.loc[:, -1:0.15].mean(axis=1)
         baselined = response.sub(baseline_mean, axis=0)
         pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
         plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
     pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
     annotation = f'n {normal_stim} = {aggregated_aligned_pupil[normal_stim].shape[0]}, n {deviant_stim} = {aggregated_aligned_pupil[deviant_stim].shape[0]}'
     pupil_plot[1].annotate(annotation, xy=(-1.005, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
-    pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, None))
+    pupil_plot[1].set_ylim(ymax= pupil_plot[1].get_ylim()[1] * 1.05)
     pupil_plot[1].set_ylabel(r'Pupil size (a.u.)')
     pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
     pupil_plot[1].legend(loc = 'upper left')
@@ -345,7 +338,7 @@ def plot_differences_method(self, normal_stim: str, deviant_stim: str, window: t
     pupil_plot[1].plot([tr[0],bl[0]], [tr[1], tr[1]], '--', color= 'gray')
     pupil_plot[1].plot([bl[0],bl[0]], [tr[1],bl[1]], '--', color= 'gray')
     
-    pupil_plot[0].suptitle(f'{animals_to_list} pupil response to Stage 2 testing stimuli')
+    pupil_plot[0].suptitle(f'Window used to calculate Δ pupil size for testing stimuli')
     
     # pupil_plot[1].spines[['right', 'top']].set_visible(False)
     
@@ -408,6 +401,64 @@ def plot_cosine_similarity(self, stim1id: str, stim2id: str, window: tuple, show
 
 
 # STAGE 5
+def plot_pupil_preprocessing(self, session_id: str = "260625_000", show_plot = True, save_figure = True):
+    if len(self.animals) > 1:
+        raise ValueError("Plotting pupil preprocessing only works for one animal at a time.")
+    
+    animal = ''.join(self.animals).strip('_filtered')
+    
+    y_labels = [
+        'Processed pupil data',
+        'Raw pupil data', 
+    ]
+    
+    session = '_'.join((animal, session_id))
+    filtered_pupil = self.pupil_df[self.pupil_df['session_id'] == session]
+    filtered_pupil = filtered_pupil.reset_index()
+    filtered_pupil['Time (min)'] = (filtered_pupil['index'] - filtered_pupil['index'][0]) / 60
+    
+    raw_pupil = pd.read_csv(fr"X:\Dammy\mouse_pupillometry\mouse_hf\{animal}_{session_id}\{animal}_{session_id.split('_')[0]}_eye0_eye_ellipse.csv", header = 0)
+    raw_pupil['Time (min)'] = raw_pupil['frame_num'] / (60 * 90)
+    
+    fig, ax = plt.subplots(figsize = (16, 4))
+    axes = [ax, ax.twinx()]
+    colours = ('tab:orange', 'tab:grey')
+    
+    pupils = [filtered_pupil, raw_pupil]
+    sizes = ['pupilsense_raddi_a_zscored', 'radius']
+    
+    for i, (ax, colour) in enumerate(zip(axes, colours)):
+        ax.plot(pupils[i]['Time (min)'], pupils[i][sizes[i]], color = colour, alpha=0.7)
+        ax.set_ylabel(y_labels[i], color = colour, fontsize = 'large')
+        ax.spines.top.set_visible(False)
+    axes[0].set_xlabel('Time (min)', fontsize = 'large')
+    
+    plt.savefig(fr'{self.output_path}\Raw Pupils\{session}_pupil_preprocessing.svg')
+    fig.clear()
+    
+    
+    fig, ax = plt.subplots(figsize = (16, 4))
+    axes = [ax, ax.twinx()]
+    colours = ('tab:orange', 'tab:grey')
+    
+    filtered_pupil = filtered_pupil[filtered_pupil['Time (min)'] <= 1]
+    raw_pupil = raw_pupil[raw_pupil['Time (min)'] <= 1]
+    
+    filtered_pupil['Time (s)'] = filtered_pupil['Time (min)'] * 60
+    raw_pupil['Time (s)'] = raw_pupil['Time (min)'] * 60
+    
+    pupils = [filtered_pupil, raw_pupil]
+    sizes = ['pupilsense_raddi_a_zscored', 'radius']
+    
+    for i, (ax, colour) in enumerate(zip(axes, colours)):
+        ax.plot(pupils[i]['Time (s)'], pupils[i][sizes[i]], color = colour, alpha=0.7)
+        ax.set_ylabel(y_labels[i], color = colour, fontsize = 'large')
+        ax.spines.top.set_visible(False)
+    axes[0].set_xlabel('Time (s)', fontsize = 'large')
+    
+    plt.savefig(fr'{self.output_path}\Raw Pupils\{session}_pupil_preprocessing_sample.svg')
+    fig.clear()
+
 def prep_for_decoding(self, window_size = 0.1, tmax = 0.64, time_from_next_pip = None):
     pip_dilations = []
     aggregated_aligned_pupil = self.aggregate_total(baseline_data=False)
