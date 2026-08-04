@@ -29,6 +29,17 @@ OUTPUT_PATH = Path(r"C:\Users\kjung\Documents\UCL\Year 4\ANAT0021 Dissertation\C
 PARQUET_DIR = Path(r'X:\Dammy\mouse_pupillometry\pickles\trans_inf_bandpass_90Hz_hpass01_lpass4')
 HARP_DIR = Path(r'X:\Dammy\harpbins')
 
+plot_type = {"first_tone": "first tone",
+            "second_tone": "second tone",
+            "third_tone": "third tone",
+            "fourth_tone": "fourth tone",
+            "sequence_identity": "sequence identity",
+            "C_sequence_identity": "C-starting sequence ID",
+            "D_sequence_identity": "D-starting sequence ID",
+            "E_sequence_identity": "E-starting sequence ID",
+            "F_sequence_identity": "F-starting sequence ID",
+            }
+
 
 def plot_permutation_results(results, title, output_path):
     """Plot a histogram of permuted accuracies and mark the observed accuracy."""
@@ -64,16 +75,6 @@ def plot_observed_vs_permutation_boxplot(results_by_animal, output_path, data_ty
     observed_values = []
     permutation_mean_values = []
     
-    plot_type = {"first_tone": "first tone",
-                "second_tone": "second tone",
-                "third_tone": "third tone",
-                "fourth_tone": "fourth tone",
-                "sequence_identity": "sequence identity",
-                "C_sequence_identity": "C-starting sequence ID",
-                "D_sequence_identity": "D-starting sequence ID",
-                "E_sequence_identity": "E-starting sequence ID",
-                "F_sequence_identity": "F-starting sequence ID",
-                }
 
     for animal, animal_results in results_by_animal.items():
         data_results = animal_results.get(data_type, {})
@@ -205,9 +206,9 @@ if __name__ == "__main__":
     # quit()
     
     STAGE = 5
-    window_size = 0.5
-    offset = 0.63
-    time_from_next_pip = 0.25
+    window_size = 0.3
+    offset = 0.49
+    #time_from_next_pip = 0.25
     
     pupil_df = tfio.load_aggregate_pupil_df(SESSION_PATH, STAGE, PARQUET_DIR)
     harp_df = tfio.load_aggregate_harp_df(SESSION_PATH, STAGE, HARP_DIR)
@@ -223,9 +224,8 @@ if __name__ == "__main__":
         plotter.align_pupil_by_session(filter=True)
         
         
-        
         print(f'\nAnimal: {animal}')
-        pip_df = plotter.prep_for_decoding(time_from_next_pip=time_from_next_pip)
+        pip_df = plotter.prep_for_decoding(tmax=offset, window_size = window_size)
         
         pip_df.dropna(inplace=True)
         
