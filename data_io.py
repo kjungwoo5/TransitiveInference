@@ -10,11 +10,9 @@ from Analysis.XdetectionCore.xdetectioncore.io_utils import load_pupil_sess_lazy
 
 
 # Load trial data by session using information in session topology
-def load_aggregate_trial_data(session_path: Path, home_dir: Path, td_df_query = None) -> pd.DataFrame:
+def load_aggregate_trial_data(session_path: Path, home_dir: Path, stage = None, td_df_query = None) -> pd.DataFrame:
     session_topology = pd.read_csv(session_path)
     session_topology.dropna(how='any', inplace=True)
-
-    td_path_pattern = '<name>/TrialData'
 
     abs_td_paths = session_topology['tdata_file'].to_list()
 
@@ -29,6 +27,9 @@ def load_aggregate_trial_data(session_path: Path, home_dir: Path, td_df_query = 
         
     td_df = pd.concat(list(td_dfs.values()), keys=td_dfs.keys(), names=['session_name'], axis=0)
     td_df.reset_index(level=('session_name'), inplace=True)
+    print(td_df)
+    if stage: 
+        td_df = td_df[td_df['Stage'] == stage]
     if td_df_query:
         td_df = td_df.query(td_df_query)
     return td_df
