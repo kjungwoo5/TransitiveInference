@@ -27,7 +27,6 @@ def load_aggregate_trial_data(session_path: Path, home_dir: Path, stage = None, 
         
     td_df = pd.concat(list(td_dfs.values()), keys=td_dfs.keys(), names=['session_name'], axis=0)
     td_df.reset_index(level=('session_name'), inplace=True)
-    print(td_df)
     if stage: 
         td_df = td_df[td_df['Stage'] == stage]
     if td_df_query:
