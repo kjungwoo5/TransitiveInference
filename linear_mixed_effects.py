@@ -45,9 +45,8 @@ for animal in ['JK01', 'JK02', 'JK03', 'JK04']:
     window_from_next_pip = 0.25
     
     tones_by_position = []
-
-    print(f'\nwindow size: {window_from_next_pip}')
-    pip_df = plotter.prep_for_decoding(time_from_next_pip=window_from_next_pip)
+    print('Animal:', animal)
+    pip_df = plotter.prep_for_decoding(window_size= 0.3, tmax = 0.49)
     
     pip_df.dropna(inplace=True)
     
@@ -130,7 +129,7 @@ for animal in ['JK01', 'JK02', 'JK03', 'JK04']:
     plt.plot(df['tone_position'], pupil_F, label='F', color='#7b1fa2', linewidth=2, linestyle=':')
 
     # Formatting
-    plt.title('Predicted Interaction: Tone x Tone Position on Pupil Dilation', fontsize=12, pad=15)
+    plt.title(f'{animal} Interaction Plot: Tone x Tone Position on Pupil Dilation', fontsize=12, pad=15)
     plt.xticks(np.arange(1, 5, step=1))
     plt.xlabel('Tone Position', fontsize=10)
     plt.ylabel('Predicted Pupil Dilation', fontsize=10)
