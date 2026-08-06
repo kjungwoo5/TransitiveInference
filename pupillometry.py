@@ -144,6 +144,7 @@ def autolabel(rects, ax):
 class PupilPlotter:
     from stage_specific_funcs import plot_pitch_dependency, plot_difference, plot_cosine_similarity, prep_for_decoding, plot_stage5_perms
     from stage_specific_funcs import plot_stage1_window_diagram, plot_differences_method, plot_pupil_preprocessing, plot_stage1_peak_time_by_stimulus
+    from stage_specific_funcs import plot_similarities_method, plot_decoding_method
     
     def __init__(self, pupil_df: pd.DataFrame, harp_df: pd.DataFrame, stage: int, type_of_analysis: str, output_path: Path, animals: list):
         valid_types_of_analysis = {'testing', 'exposure', 'first', 'second'}
@@ -584,6 +585,8 @@ class PupilPlotter:
         aggregated_aligned_pupil = self.aggregate_total()
         pupil_plot = plt.subplots()
         for event_id, response in aggregated_aligned_pupil.items():
+            if event_id == 'X':
+                continue
             if self.stage == 1:
                 baseline_mean = response.loc[:, -0.15:0.15].mean(axis=1)
             else:
@@ -598,7 +601,7 @@ class PupilPlotter:
         pupil_plot[1].legend()
         pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
         annotation = f'n = {aggregated_aligned_pupil["X"].shape[0]} trials'
-        pupil_plot[1].annotate(annotation, xy=(0.3, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+        pupil_plot[1].annotate(annotation, xy=(0.005, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
         pupil_plot[1].set_ylim(Y_LIMS.get(self.stage, {}).get(animals_to_list, None))
         pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
         pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
@@ -606,7 +609,9 @@ class PupilPlotter:
         pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
         pupil_plot[1].set_ylabel('Pupil size (a.u.)')
         pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
-        pupil_plot[0].suptitle(f'{animals_to_list} pupil size for stage {THESIS_STAGES.get(self.stage)}')
+        
+        animals_to_list = animals_to_list.strip('_filtered')
+        pupil_plot[0].suptitle(f'{animals_to_list} pupil responses for Stage {THESIS_STAGES.get(self.stage)} stimuli')
         fig = plt.gcf()
         if show_plot:
             pupil_plot[0].show()

@@ -122,8 +122,8 @@ def plot_stage1_window_diagram(self, stim_to_show: str, window = (0, 0.75), save
     pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
  
     
-    bl = (0.45, -0.03)
-    tr = (0.55, pupil_plot[1].get_ylim()[1] * 0.90)
+    bl = (0.44, -0.03)
+    tr = (0.54, pupil_plot[1].get_ylim()[1] * 0.90)
     
     pupil_plot[1].plot([bl[0],tr[0]], [bl[1],bl[1]], '--', color= 'gray')
     pupil_plot[1].plot([tr[0],tr[0]], [bl[1], tr[1]], '--', color= 'gray')
@@ -216,13 +216,12 @@ def plot_stage1_peak_time_by_stimulus(self, baseline_window=(-0.15, 0.15), searc
 
 
 # STAGE 4
-
-
-    
-
 def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by_session = True, show_plot = True, save_figure = True, regress_baseline = False):
     animals_to_list = ', '.join(self.animals)
     
+    animals_to_list = animals_to_list.strip('_filtered')
+    if ', '.join(self.animals).strip() == 'JK01_filtered, JK02_filtered, JK03_filtered, JK04_filtered':
+            animals_to_list = 'Overall'
     
     baseline_window = (-1,0)
     df_for_regr = self.build_session_wide_baseline_dataframe(
@@ -241,6 +240,7 @@ def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by
     )
     
     pupil_plot = plt.subplots()
+    plt.axhline(y=0, color='gray', linestyle = '--')
     
     aligned_pupil_by_session = self.aligned_pupil_by_session
     if regress_baseline: 
@@ -287,17 +287,20 @@ def plot_difference(self, normal_stim: str, deviant_stim: str, window: tuple, by
         for patch in box["boxes"]:
             patch.set(facecolor="lightgray", alpha=0.8)
         
-        pupil_plot[0].suptitle(f'{animals_to_list} difference in pupil dilation for deviant')
-        pupil_plot[0].text(
-                0.98,
-                0.95,
-                f"p = {wilcoxon.pvalue:.3f}",
-                transform=plt.gca().transAxes,
-                ha="right",
-                va="top",
-                fontsize=10,
-                bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
-            )
+        pupil_plot[0].suptitle(f'{animals_to_list} difference in pupil dilation between testing stimuli')
+        if animals_to_list != 'Overall':
+            pupil_plot[0].text(
+                    0.98,
+                    0.95,
+                    f"p = {wilcoxon.pvalue:.3f}",
+                    transform=plt.gca().transAxes,
+                    ha="right",
+                    va="top",
+                    fontsize=10,
+                    bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+                )
+        
+        pupil_plot[1].set_ylabel('Pupil size (a.u.)')
         
         
         fig = plt.gcf()
@@ -352,7 +355,12 @@ def plot_differences_method(self, normal_stim: str, deviant_stim: str, window: t
 
 def plot_cosine_similarity(self, stim1id: str, stim2id: str, window: tuple, show_plot = True, save_figure = True):
     
-    animals_to_list = ', '.join(self.animals)
+    animals_to_list = ', '.join(self.animals).strip('_filtered')
+    if animals_to_list.strip() == 'JK01_filtered, JK02_filtered, JK03_filtered, JK04_filtered':
+        animals_to_list = 'Overall'
+    animals_to_list = animals_to_list.strip('_filtered')
+    
+    
     pupil_plot = plt.subplots()
     print(f'Cosine similarities for {self.animals}')
     cosine_similarities = []
@@ -371,7 +379,7 @@ def plot_cosine_similarity(self, stim1id: str, stim2id: str, window: tuple, show
         stim2 = baselined_2.loc[:, window[0]:window[1]].mean(axis=0)
 
         cosine_similarity = np.dot(stim1, stim2) / (norm(stim1) * norm(stim2))
-        print(f'Cosine similarity for {stim1id} and {stim2id} is {cosine_similarity}.')
+        # print(f'Cosine similarity for {stim1id} and {stim2id} is {cosine_similarity}.')
         cosine_similarities.append(cosine_similarity)
         
     # pupil_plot[1].scatter(sessions, cosine_similarities)
@@ -391,14 +399,61 @@ def plot_cosine_similarity(self, stim1id: str, stim2id: str, window: tuple, show
     
     pupil_plot[1].plot(session_numbers, poly1d_fn(session_numbers), '--r', label = r_squared)
     
-    pupil_plot[0].suptitle(f'{animals_to_list} cosine similarities in pupil dilation for training stimuli')
-    pupil_plot[1].legend(loc = 'top left')
+    pupil_plot[0].suptitle(f'{animals_to_list} cosine similarities in pupil dilation \nbetween training stimuli {stim1id} and {stim2id}')
+    pupil_plot[1].legend(loc = 'upper left')
+    pupil_plot[1].set_xlabel('No. of sessions')
+    pupil_plot[1].set_ylabel('Cosine similarity')
         
     
     fig = plt.gcf()
     fig.savefig(fr'{self.output_path}\Similarities\Stage{self.stage}_{animals_to_list}_Similarities.svg')
     fig.clf()
 
+def plot_similarities_method(self, stim1id: str, stim2id: str, window: tuple, show_plot = True, save_figure = True):
+    animals_to_list = ', '.join(self.animals)
+    animals_to_list = animals_to_list.split('_')[0]
+    
+    aggregated_aligned_pupil = self.aggregate_total()
+    pupil_plot = plt.subplots()
+    for event_id, response in aggregated_aligned_pupil.items():
+        if event_id != stim1id and event_id != stim2id:
+            continue
+        baseline_mean = response.loc[:, -1:0.15].mean(axis=1)
+        baselined = response.sub(baseline_mean, axis=0)
+        pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+        plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+    pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
+    annotation = f'n {stim1id} = {aggregated_aligned_pupil[stim1id].shape[0]}, n {stim2id} = {aggregated_aligned_pupil[stim2id].shape[0]}'
+    pupil_plot[1].annotate(annotation, xy=(-1.005, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+    pupil_plot[1].set_ylim(ymax= pupil_plot[1].get_ylim()[1] * 1.1)
+    pupil_plot[1].set_ylabel(r'Pupil size (a.u.)')
+    pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
+    pupil_plot[1].legend(loc = 'upper left')
+    pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
+    
+    
+    bl = (window[0], pupil_plot[1].get_ylim()[0] * 0.90)
+    tr = (window[1], pupil_plot[1].get_ylim()[1] * 0.90)
+    
+    pupil_plot[1].plot([bl[0],tr[0]], [bl[1],bl[1]], '--', color= 'gray')
+    pupil_plot[1].plot([tr[0],tr[0]], [bl[1], tr[1]], '--', color= 'gray')
+    pupil_plot[1].plot([tr[0],bl[0]], [tr[1], tr[1]], '--', color= 'gray')
+    pupil_plot[1].plot([bl[0],bl[0]], [tr[1],bl[1]], '--', color= 'gray')
+    
+    pupil_plot[0].suptitle(f'Window used to find cosine similarity for training stimuli')
+    
+    # pupil_plot[1].spines[['right', 'top']].set_visible(False)
+    
+    fig = plt.gcf()
+    if show_plot:
+        pupil_plot[0].show()
+    if save_figure:
+        os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True) 
+        fig.savefig(fr'{self.output_path}\Stage 4\{animals_to_list}_similarities_methods.svg')
+    fig.clf()
 
 # STAGE 5
 def plot_pupil_preprocessing(self, session_id: str = "260625_000", show_plot = True, save_figure = True):
@@ -428,10 +483,13 @@ def plot_pupil_preprocessing(self, session_id: str = "260625_000", show_plot = T
     sizes = ['pupilsense_raddi_a_zscored', 'radius']
     
     for i, (ax, colour) in enumerate(zip(axes, colours)):
-        ax.plot(pupils[i]['Time (min)'], pupils[i][sizes[i]], color = colour, alpha=0.7)
+        ax.plot(pupils[i]['Time (min)'], pupils[i][sizes[i]], color = colour, alpha=0.8)
         ax.set_ylabel(y_labels[i], color = colour, fontsize = 'large')
         ax.spines.top.set_visible(False)
     axes[0].set_xlabel('Time (min)', fontsize = 'large')
+    axes[0].set_zorder(2)
+    axes[0].patch.set_visible(False)
+    axes[1].set_zorder(1)
     
     plt.savefig(fr'{self.output_path}\Raw Pupils\{session}_pupil_preprocessing.svg')
     fig.clear()
@@ -451,10 +509,13 @@ def plot_pupil_preprocessing(self, session_id: str = "260625_000", show_plot = T
     sizes = ['pupilsense_raddi_a_zscored', 'radius']
     
     for i, (ax, colour) in enumerate(zip(axes, colours)):
-        ax.plot(pupils[i]['Time (s)'], pupils[i][sizes[i]], color = colour, alpha=0.7)
+        ax.plot(pupils[i]['Time (s)'], pupils[i][sizes[i]], color = colour, alpha=0.8)
         ax.set_ylabel(y_labels[i], color = colour, fontsize = 'large')
         ax.spines.top.set_visible(False)
     axes[0].set_xlabel('Time (s)', fontsize = 'large')
+    axes[0].set_zorder(2)
+    axes[0].patch.set_visible(False)
+    axes[1].set_zorder(1)
     
     plt.savefig(fr'{self.output_path}\Raw Pupils\{session}_pupil_preprocessing_sample.svg')
     fig.clear()
@@ -533,4 +594,51 @@ def plot_stage5_perms(self, save_figure = True, show_plot = True):
             os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True)
             fig.savefig(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}\Stage{self.stage}_{start_letter}Sequences_{animals_to_list}_Baseline_Subtracted.svg')
         fig.clf()
+
+def plot_decoding_method(self, stim_id: str, window: tuple, show_plot = True, save_figure = True):
+    animals_to_list = ', '.join(self.animals)
+    animals_to_list = animals_to_list.split('_')[0]
+    
+    aggregated_aligned_pupil = self.aggregate_total()
+    pupil_plot = plt.subplots()
+    for event_id, response in aggregated_aligned_pupil.items():
+        if event_id != stim_id:
+            continue
+        baseline_mean = response.loc[:, -1:0.15].mean(axis=1)
+        baselined = response.sub(baseline_mean, axis=0)
+        pupil_plot[1].plot(baselined.columns, baselined.mean(axis=0),label=event_id, color=STIMULUS_COLOURS.get(event_id, None))
+        plot_shaded_error_ts(pupil_plot[1],baselined.columns,baselined.mean(axis=0), baselined.sem(axis=0),alpha=0.1, color=STIMULUS_COLOURS.get(event_id, None))
+    pupil_plot[1].set_xlim((PLOTTING_WINDOW[0], PLOTTING_WINDOW[1]))
+    annotation = f'n {stim_id} = {aggregated_aligned_pupil[stim_id].shape[0]}'
+    pupil_plot[1].annotate(annotation, xy=(-1.005, 1.02), xycoords=pupil_plot[1].get_xaxis_transform())
+    pupil_plot[1].set_ylim(ymax= pupil_plot[1].get_ylim()[1] * 1.1)
+    pupil_plot[1].set_ylabel(r'Pupil size (a.u.)')
+    pupil_plot[1].set_xlabel('Time from stimulus onset (s)')
+    pupil_plot[1].legend(loc = 'upper left')
+    pupil_plot[1].axvspan(0, 0.15, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(0.5, 0.65, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(1, 1.15, color='grey', alpha=0.1)
+    pupil_plot[1].axvspan(1.5, 1.65, color='grey', alpha=0.1)
+    
+    for no, i in enumerate(np.arange(0, 2, 0.5)):
+        bl = (window[0] + i, pupil_plot[1].get_ylim()[0] * 0.90)
+        tr = (window[1] + i, pupil_plot[1].get_ylim()[1] * 0.90)
         
+        pupil_plot[1].text(window[0] + i, pupil_plot[1].get_ylim()[1] * 0.93, f'pip {no + 1}')
+        
+        pupil_plot[1].plot([bl[0],tr[0]], [bl[1],bl[1]], '--', color= 'gray')
+        pupil_plot[1].plot([tr[0],tr[0]], [bl[1], tr[1]], '--', color= 'gray')
+        pupil_plot[1].plot([tr[0],bl[0]], [tr[1], tr[1]], '--', color= 'gray')
+        pupil_plot[1].plot([bl[0],bl[0]], [tr[1],bl[1]], '--', color= 'gray')
+    
+    pupil_plot[0].suptitle(f'Mean windows used as features for decoder')
+    
+    # pupil_plot[1].spines[['right', 'top']].set_visible(False)
+    
+    fig = plt.gcf()
+    if show_plot:
+        pupil_plot[0].show()
+    if save_figure:
+        os.makedirs(fr'{self.output_path}\{self.output_subdir}\{animals_to_list}', exist_ok=True) 
+        fig.savefig(fr'{self.output_path}\Stage 5\{animals_to_list}_{stim_id}_decoding_methods.svg')
+    fig.clf()
