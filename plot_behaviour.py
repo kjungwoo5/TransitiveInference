@@ -14,4 +14,4 @@ if __name__ == "__main__":
     # tfb.plot_reaction_time(td_df = td_df, output_path = OUTPUT_PATH)
     # tfb.plot_X_A_time(td_df = td_df, stage = STAGE, output_path = OUTPUT_PATH)
     
-    tfb.plot_learning(td_df, OUTPUT_PATH, ['JK01', 'JK02', 'JK03', 'JK04'])
+    tfb.plot_learning(td_df, OUTPUT_PATH, 20, 1)

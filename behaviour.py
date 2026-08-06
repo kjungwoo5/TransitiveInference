@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
+from matplotlib.ticker import PercentFormatter
 import os
 
 import matplotlib.pyplot as plt
@@ -27,6 +28,9 @@ def plot_reaction_time(td_df: pd.DataFrame, output_path: Path, days_list = None,
 
     df['Reaction_Time'] = df['RewardTone_Time'] - df['Gap_Time']
     df = df[(df['Reaction_Time'] >= 0) & (df['Reaction_Time'] <= 1)]
+    
+    print('Mean reaction time across all animals: ', df['Reaction_Time'].mean())
+    print('S.D of reaction time across all animals: ', df['Reaction_Time'].std())
 
     for session in tqdm(df['session_name'].unique()):
         single_df = df[df['session_name'] == session]
@@ -71,12 +75,8 @@ def plot_X_A_time(td_df: pd.DataFrame, stage : int, output_path: Path, days_list
     fig.clf()
 
 
-def plot_learning(td_df: pd.DataFrame, output_path: Path, animals: list, show_plots = False):
-    run_length = 5
-    
-    print(td_df)
-    df = td_df[td_df['Stage'] <= 1].copy()
-    print(df)
+def plot_learning(td_df: pd.DataFrame, output_path: Path, run_length: int, stage: int, show_plots = False):
+    df = td_df[td_df['Stage'] == stage].copy()
     plt.pause(0.1)
     
     success_rates = {
@@ -118,9 +118,16 @@ def plot_learning(td_df: pd.DataFrame, output_path: Path, animals: list, show_pl
     for animal in success_rates.keys():
         success_rates[animal] = [np.nan] * (longest_length - len(success_rates[animal])) + success_rates[animal]
         ax.plot(success_rates[animal], label= animal)
+    
     ax.set_ylim(ymin= 0)
-    fig.legend()
+    ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
+    ax.set_xlabel('Sessions before moving on to Stage 2')
+    ax.set_ylabel('Trial success rate')
+    ax.set_title('Cover-up task success rate by session across Stage 1')
+    ax.set_xticklabels([str(longest_length - i + 1) for i in range(longest_length + 1)])
+    ax.grid(axis='y')
+    ax.legend()
     if show_plots:
         plt.show()
-    fig.savefig(output_path / fr'Learning\Learning_plot_{run_length}.png')
+    fig.savefig(output_path / fr'Stage {stage}\Learning_plot_{run_length}_Stage{stage}.svg')
     fig.clf()
